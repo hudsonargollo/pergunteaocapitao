@@ -72,15 +72,11 @@ This script must chunk the documents into meaningful segments, generate embeddin
 
 Initial Knowledge Base:
 
-O QUE É O MODO CAVERNA?
+modocaverna-docs.md
 
-MODO CAVERNA by Capitão Caverna
+Base Template Prompts:
 
-Modo Caverna Methodology
-
-🧭 ONBOARDING / TOUR GUIADO - MODO CAVERNA
-
-PRD "Pergunte ao Capitão" Melhorado
+base-image-prompts.md
 
 API Endpoint (POST /api/chat):
 
