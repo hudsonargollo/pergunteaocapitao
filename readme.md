@@ -73,6 +73,7 @@ This script must chunk the documents into meaningful segments, generate embeddin
 Initial Knowledge Base:
 
 modocaverna-docs.md
+/aulas-modocaverna-cavefocus (pdf files inside folder)
 
 Base Template Prompts:
 
