@@ -3,7 +3,7 @@ import { EmbeddingService } from './embedding-service'
 import { VectorizeClient } from './vectorize'
 import { SemanticSearchService } from './semantic-search'
 import { SearchResultProcessor } from './search-result-processor'
-import type { CloudflareEnv } from '@/types'
+// CloudflareEnv is now available globally from cloudflare-env.d.ts
 
 /**
  * Complete semantic search pipeline integration

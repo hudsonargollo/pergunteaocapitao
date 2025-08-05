@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     usageAnalytics['env'] = env;
 
     let exportData: string;
-    let contentType: string;
+    let contentType: string = '';
     let filename: string;
 
     switch (type) {

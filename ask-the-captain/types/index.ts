@@ -178,11 +178,5 @@ export interface ErrorResponse {
   }
 }
 
-// Cloudflare environment types
-export interface CloudflareEnv {
-  OPENAI_API_KEY: string
-  DB: D1Database
-  VECTORIZE_INDEX: VectorizeIndex
-  R2_BUCKET: R2Bucket
-  ASSETS: Fetcher
-}
+// Cloudflare environment types are now generated in cloudflare-env.d.ts
+// Use the generated CloudflareEnv interface instead

@@ -9,7 +9,7 @@ import { cacheManager } from '@/lib/cache-manager'
 import { edgeMemoryManager, performanceMonitor, withTimeout } from '@/lib/edge-optimization'
 import { metricsCollector, createRequestMetric } from '@/lib/performance-monitoring'
 import { withImageMonitoring, type MonitoringContext } from '@/lib/monitoring-middleware'
-import type { ImageGenerationRequest, ImageGenerationResponse, CloudflareEnv, ToneAnalysis } from '@/types'
+import type { ImageGenerationRequest, ImageGenerationResponse, ToneAnalysis } from '@/types'
 
 interface RequestBody {
   responseContent: string

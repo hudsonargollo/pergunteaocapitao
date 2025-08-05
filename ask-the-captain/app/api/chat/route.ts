@@ -13,7 +13,7 @@ import { cacheManager } from '@/lib/cache-manager'
 import { edgeMemoryManager, performanceMonitor, withTimeout } from '@/lib/edge-optimization'
 import { metricsCollector, createRequestMetric } from '@/lib/performance-monitoring'
 import { withChatMonitoring, type MonitoringContext } from '@/lib/monitoring-middleware'
-import type { ChatRequest, ChatResponse, CloudflareEnv } from '@/types'
+import type { ChatRequest, ChatResponse } from '@/types'
 
 interface RequestBody {
   message: string

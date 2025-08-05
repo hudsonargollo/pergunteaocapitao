@@ -3,7 +3,7 @@
  * Tracks user behavior, feature usage, and business metrics for Ask the Captain
  */
 
-import type { CloudflareEnv } from '@/types'
+// CloudflareEnv is now available globally from cloudflare-env.d.ts
 
 export interface UsageEvent {
   id: string

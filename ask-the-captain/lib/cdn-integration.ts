@@ -3,7 +3,7 @@
  * Provides CDN caching, image optimization, and cache control headers
  */
 
-import type { CloudflareEnv } from '@/types'
+// CloudflareEnv is now available globally from cloudflare-env.d.ts
 
 export interface CDNOptions {
   cacheControl: string

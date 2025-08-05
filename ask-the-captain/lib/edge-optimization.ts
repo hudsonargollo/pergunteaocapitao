@@ -3,7 +3,7 @@
  * Implements edge-optimized patterns, memory management, and performance monitoring
  */
 
-import type { CloudflareEnv } from '@/types'
+// CloudflareEnv is now available globally from cloudflare-env.d.ts
 
 export interface EdgeOptimizationOptions {
   memoryThreshold: number // MB

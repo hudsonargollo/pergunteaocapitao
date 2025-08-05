@@ -3,7 +3,7 @@
 import { processAllDocuments } from '../lib/document-processor'
 import { generateEmbeddingsForChunks } from '../lib/embedding-service'
 import { ingestEmbeddings, createVectorizeClient } from '../lib/vectorize'
-import type { CloudflareEnv, DocumentChunk, EmbeddingVector } from '@/types'
+import type { DocumentChunk, EmbeddingVector } from '@/types'
 import path from 'path'
 
 // Configuration

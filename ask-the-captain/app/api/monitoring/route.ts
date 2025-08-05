@@ -253,6 +253,15 @@ async function getRecommendationsData() {
   const systemRecommendations = [
     {
       recommendations: [
+        'Monitor API rate limits and implement circuit breakers',
+        'Set up real-time error alerting for critical failures',
+        'Implement health checks for all external dependencies'
+      ],
+      priority: 'high' as const,
+      estimatedImpact: 'Prevent system outages and improve reliability'
+    },
+    {
+      recommendations: [
         'Set up automated alerting for critical metrics',
         'Implement log aggregation for better debugging',
         'Configure backup and disaster recovery procedures'
@@ -291,7 +300,7 @@ async function getRecommendationsData() {
 export async function POST(request: NextRequest) {
   try {
     const { env } = await getCloudflareContext();
-    const body = await request.json();
+    const body = await request.json() as { action?: string; alertId?: string; alertType?: string };
     const { action, alertId, alertType } = body;
 
     if (action === 'resolve' && alertId && alertType) {

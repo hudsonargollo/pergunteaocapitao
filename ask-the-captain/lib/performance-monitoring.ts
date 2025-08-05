@@ -4,7 +4,7 @@
  */
 
 import { performanceMonitor } from './edge-optimization'
-import type { CloudflareEnv } from '@/types'
+// CloudflareEnv is now available globally from cloudflare-env.d.ts
 
 export interface MetricsData {
   timestamp: number

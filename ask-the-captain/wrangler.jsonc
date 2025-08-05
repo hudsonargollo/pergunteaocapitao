@@ -31,8 +31,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "ask-the-captain-db",
-			"database_id": "placeholder-will-be-replaced-after-creation"
+			"database_name": "ask-the-captain-production",
+			"database_id": "29c86308-3e98-4083-8d9c-3d643d971736"
 		}
 	],
 	"vectorize": [
