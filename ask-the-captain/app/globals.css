@@ -1,0 +1,774 @@
+@import "tailwindcss";
+
+/* Modo Caverna Glass Morphism Design System - Cave-themed with WCAG 2.1 AA compliance */
+
+@layer base {
+  :root {
+    /* Modo Caverna color palette - optimized for high contrast and accessibility */
+    --background: 240 8% 6%;
+    --background-secondary: 240 9% 9%;
+    --foreground: 0 0% 98%;
+
+    /* Glass surfaces with enhanced contrast for readability */
+    --glass: 240 7% 12%;
+    --glass-light: 240 9% 18%;
+    --glass-lighter: 240 11% 24%;
+    --glass-border: 0 100% 65%;
+
+    /* Chat specific colors with improved contrast ratios */
+    --chat-user: 0 100% 65%;
+    --chat-ai: 240 12% 28%;
+    --chat-background: 240 7% 5%;
+
+    /* UI components with WCAG AA compliance */
+    --card: 240 8% 10%;
+    --card-foreground: 0 0% 96%;
+
+    --popover: 240 9% 10%;
+    --popover-foreground: 0 0% 96%;
+
+    --primary: 0 100% 65%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 240 9% 16%;
+    --secondary-foreground: 0 0% 92%;
+
+    --muted: 240 7% 13%;
+    --muted-foreground: 240 6% 70%;
+
+    --accent: 0 85% 60%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 100% 65%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 12% 22%;
+    --input: 240 8% 12%;
+    --ring: 0 100% 65%;
+
+    --radius: 1rem;
+
+    /* Enhanced Modo Caverna gradients with better contrast */
+    --gradient-glass: linear-gradient(135deg, 
+      hsla(240, 9%, 16%, 0.6) 0%, 
+      hsla(0, 100%, 65%, 0.08) 30%, 
+      hsla(240, 11%, 20%, 0.4) 70%, 
+      hsla(0, 85%, 60%, 0.12) 100%);
+    
+    --gradient-border: linear-gradient(135deg, 
+      hsla(0, 100%, 65%, 0.9) 0%, 
+      hsla(0, 85%, 60%, 0.7) 20%, 
+      hsla(240, 9%, 18%, 0.5) 40%, 
+      hsla(0, 90%, 62%, 0.6) 60%, 
+      hsla(240, 11%, 22%, 0.4) 80%, 
+      hsla(0, 100%, 65%, 0.8) 100%);
+
+    --gradient-chat-user: linear-gradient(135deg, 
+      hsl(0, 100%, 65%) 0%, 
+      hsl(0, 85%, 70%) 100%);
+    
+    --gradient-chat-ai: linear-gradient(135deg, 
+      hsl(240, 12%, 28%) 0%, 
+      hsl(240, 14%, 32%) 100%);
+
+    /* Enhanced cave-themed shadows with depth */
+    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+    --shadow-glass-medium: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+    --shadow-glass-strong: 0 16px 48px 0 rgba(0, 0, 0, 0.5);
+    --shadow-glass-inset: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+    --shadow-glow: 0 0 24px rgba(255, 51, 51, 0.4);
+    --shadow-glow-strong: 0 0 32px rgba(255, 51, 51, 0.6);
+
+    /* Cave atmosphere lighting effects */
+    --cave-light-warm: 45 100% 70%;
+    --cave-light-cool: 240 30% 80%;
+    --cave-ember: 15 100% 60%;
+  }
+
+  /* Dark mode optimizations for better contrast */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --foreground: 0 0% 99%;
+      --muted-foreground: 240 7% 75%;
+      --card-foreground: 0 0% 97%;
+      --popover-foreground: 0 0% 97%;
+      --secondary-foreground: 0 0% 94%;
+    }
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    background: 
+      radial-gradient(ellipse at 15% 15%, rgba(255, 51, 51, 0.12) 0%, transparent 45%),
+      radial-gradient(ellipse at 85% 85%, rgba(255, 51, 51, 0.08) 0%, transparent 45%),
+      radial-gradient(ellipse at 50% 30%, rgba(45, 100, 70, 0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 30% 70%, rgba(15, 100, 60, 0.06) 0%, transparent 50%),
+      linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--background-secondary)) 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  /* Enhanced glass morphism utilities with improved readability */
+  .glass {
+    background: var(--gradient-glass);
+    backdrop-filter: blur(28px) saturate(125%);
+    border: 1px solid hsla(var(--glass-border), 0.18);
+    box-shadow: 
+      var(--shadow-glass),
+      var(--shadow-glass-inset);
+  }
+
+  .glass-medium {
+    background: linear-gradient(135deg, 
+      hsla(var(--glass-light), 0.25) 0%, 
+      hsla(0, 100%, 65%, 0.06) 40%, 
+      hsla(var(--glass-lighter), 0.20) 100%);
+    backdrop-filter: blur(36px) saturate(135%);
+    border: 1px solid hsla(var(--glass-border), 0.28);
+    box-shadow: 
+      var(--shadow-glass-medium),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+      inset 0 -1px 0 0 rgba(255, 51, 51, 0.08);
+  }
+
+  .glass-strong {
+    background: linear-gradient(135deg, 
+      hsla(var(--glass-lighter), 0.45) 0%, 
+      hsla(0, 100%, 65%, 0.08) 30%, 
+      hsla(var(--glass-light), 0.35) 70%, 
+      hsla(0, 85%, 60%, 0.10) 100%);
+    backdrop-filter: blur(44px) saturate(145%);
+    border: 1px solid hsla(var(--glass-border), 0.45);
+    box-shadow: 
+      var(--shadow-glass-strong),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 0 rgba(255, 51, 51, 0.12);
+  }
+
+  /* Enhanced glass border with cave lighting effects */
+  .glass-border {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: var(--gradient-border);
+    border-radius: inherit;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask-composite: xor;
+    opacity: 0.75;
+  }
+
+  .glass-border::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(255, 51, 51, 0.15) 0%, transparent 70%);
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  /* Enhanced card layouts with cave atmosphere and accessibility */
+  .card-elevated {
+    transform: translateY(0) scale(1);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, box-shadow;
+  }
+
+  .card-elevated:hover {
+    transform: translateY(-3px) scale(1.01);
+    box-shadow: 
+      0 24px 72px 0 rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+      var(--shadow-glow);
+  }
+
+  .card-elevated:focus-within {
+    transform: translateY(-2px) scale(1.005);
+    box-shadow: 
+      0 20px 60px 0 rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+      var(--shadow-glow-strong);
+  }
+
+  /* Smooth transitions optimized for performance */
+  * {
+    transition: color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* WCAG 2.1 AA compliant text with enhanced contrast - use text-cave-* classes instead */
+
+  /* Enhanced focus indicators for WCAG 2.1 AA compliance */
+  .focus-cave {
+    outline: 3px solid hsl(var(--primary));
+    outline-offset: 3px;
+    box-shadow: 
+      0 0 0 6px hsla(var(--primary), 0.25),
+      var(--shadow-glow);
+    border-radius: calc(var(--radius) + 2px);
+  }
+
+  .focus-cave:focus-visible {
+    outline: 3px solid hsl(var(--primary));
+    outline-offset: 3px;
+    box-shadow: 
+      0 0 0 6px hsla(var(--primary), 0.3),
+      var(--shadow-glow-strong);
+  }
+
+  /* Cave-themed interactive states */
+  .interactive-cave {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .interactive-cave::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, 
+      rgba(255, 51, 51, 0.1) 0%, 
+      transparent 50%, 
+      rgba(255, 51, 51, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .interactive-cave:hover::before {
+    opacity: 1;
+  }
+
+  /* Accessibility improvements */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    
+    .card-elevated {
+      transform: none !important;
+    }
+  }
+
+  @media (prefers-contrast: high) {
+    :root {
+      --foreground: 0 0% 100%;
+      --background: 240 10% 3%;
+      --glass-border: 0 100% 70%;
+      --primary: 0 100% 70%;
+    }
+    
+    .glass, .glass-medium, .glass-strong {
+      border-width: 2px;
+    }
+  }
+
+  /* Enhanced button styles with cave theme */
+  .btn-cave-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    border: 1px solid hsla(var(--primary), 0.8);
+    box-shadow: 
+      0 4px 16px rgba(255, 51, 51, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-cave-primary:hover {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    box-shadow: 
+      0 6px 24px rgba(255, 51, 51, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+  }
+
+  .btn-cave-secondary {
+    background: var(--gradient-glass);
+    border: 1px solid hsla(var(--glass-border), 0.3);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-glass);
+  }
+
+  .btn-cave-secondary:hover {
+    background: linear-gradient(135deg, 
+      hsla(var(--glass-light), 0.4) 0%, 
+      hsla(0, 100%, 65%, 0.1) 50%, 
+      hsla(var(--glass-lighter), 0.3) 100%);
+    box-shadow: 
+      var(--shadow-glass-medium),
+      var(--shadow-glow);
+  }
+}
+
+/* Additional Cave-themed Utility Classes */
+@layer utilities {
+  /* Glass morphism variants for different use cases */
+  .glass-subtle {
+    background: linear-gradient(135deg, 
+      hsla(var(--glass), 0.08) 0%, 
+      hsla(0, 100%, 65%, 0.02) 50%, 
+      hsla(var(--glass), 0.06) 100%);
+    backdrop-filter: blur(20px) saturate(110%);
+    border: 1px solid hsla(var(--glass-border), 0.12);
+    box-shadow: 
+      0 4px 16px 0 rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .glass-intense {
+    background: linear-gradient(135deg, 
+      hsla(var(--glass-lighter), 0.6) 0%, 
+      hsla(0, 100%, 65%, 0.12) 25%, 
+      hsla(var(--glass-light), 0.5) 75%, 
+      hsla(0, 85%, 60%, 0.15) 100%);
+    backdrop-filter: blur(52px) saturate(155%);
+    border: 2px solid hsla(var(--glass-border), 0.6);
+    box-shadow: 
+      0 20px 64px 0 rgba(0, 0, 0, 0.6),
+      inset 0 2px 0 0 rgba(255, 255, 255, 0.25),
+      inset 0 -2px 0 0 rgba(255, 51, 51, 0.15),
+      var(--shadow-glow);
+  }
+
+  /* Cave-themed text utilities with proper contrast */
+  .text-cave-primary {
+    color: hsl(var(--foreground));
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    font-weight: 600;
+  }
+
+  .text-cave-secondary {
+    color: hsl(var(--muted-foreground));
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    font-weight: 500;
+  }
+
+  .text-cave-accent {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    font-weight: 700;
+  }
+
+  .text-cave-ember {
+    color: hsl(var(--cave-ember));
+    text-shadow: 0 0 8px hsla(var(--cave-ember), 0.5);
+    font-weight: 600;
+  }
+
+  /* Interactive states with cave atmosphere */
+  .hover-cave-glow:hover {
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-1px);
+  }
+
+  .hover-cave-lift:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-glass-medium);
+  }
+
+  .hover-cave-intense:hover {
+    box-shadow: var(--shadow-glow-strong);
+    border-color: hsla(var(--primary), 0.8);
+  }
+
+  /* Cave-themed borders and dividers */
+  .border-cave {
+    border-color: hsla(var(--glass-border), 0.3);
+  }
+
+  .border-cave-glow {
+    border: 1px solid hsla(var(--primary), 0.4);
+    box-shadow: inset 0 0 0 1px hsla(var(--primary), 0.2);
+  }
+
+  .divider-cave {
+    height: 1px;
+    background: linear-gradient(90deg, 
+      transparent 0%, 
+      hsla(var(--glass-border), 0.6) 20%, 
+      hsla(var(--primary), 0.4) 50%, 
+      hsla(var(--glass-border), 0.6) 80%, 
+      transparent 100%);
+  }
+
+  /* Cave-themed backdrop blur utilities */
+  .backdrop-blur-cave {
+    backdrop-filter: blur(20px) saturate(120%);
+  }
+
+  .backdrop-blur-cave-medium {
+    backdrop-filter: blur(28px) saturate(130%);
+  }
+
+  .backdrop-blur-cave-strong {
+    backdrop-filter: blur(36px) saturate(140%);
+  }
+
+  /* Cave lighting effects */
+  .cave-lighting {
+    position: relative;
+  }
+
+  .cave-lighting::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    right: -50%;
+    bottom: -50%;
+    background: radial-gradient(circle, 
+      rgba(255, 51, 51, 0.1) 0%, 
+      rgba(255, 51, 51, 0.05) 30%, 
+      transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Accessibility enhancements */
+  .focus-cave-strong:focus-visible {
+    outline: 4px solid hsl(var(--primary));
+    outline-offset: 4px;
+    box-shadow: 
+      0 0 0 8px hsla(var(--primary), 0.3),
+      var(--shadow-glow-strong);
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .glass, .glass-medium, .glass-strong {
+      background: hsl(var(--background));
+      border: 3px solid hsl(var(--primary));
+    }
+    
+    .text-cave-primary, .text-cave-secondary {
+      text-shadow: none;
+      color: hsl(var(--foreground));
+    }
+    
+    .btn-cave-primary, .btn-cave-secondary {
+      background: hsl(var(--primary));
+      border: 2px solid hsl(var(--foreground));
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .card-elevated, .hover-cave-lift, .hover-cave-glow {
+      transform: none !important;
+      transition: none !important;
+    }
+    
+    .animate-cave-glow, .animate-ember-flicker {
+      animation: none !important;
+    }
+  }
+
+  /* Print styles */
+  @media print {
+    .glass, .glass-medium, .glass-strong {
+      background: white !important;
+      border: 1px solid black !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+    }
+    
+    .text-cave-primary, .text-cave-secondary, .text-cave-accent {
+      color: black !important;
+      text-shadow: none !important;
+      background: none !important;
+      -webkit-text-fill-color: black !important;
+    }
+  }
+}
+
+/* Component-specific enhancements */
+@layer components {
+  /* Enhanced chat message styling */
+  .chat-message-user {
+    background: linear-gradient(135deg, 
+      hsla(var(--glass-lighter), 0.45) 0%, 
+      hsla(0, 100%, 65%, 0.08) 30%, 
+      hsla(var(--glass-light), 0.35) 70%, 
+      hsla(0, 85%, 60%, 0.10) 100%);
+    backdrop-filter: blur(44px) saturate(145%);
+    border: 1px solid hsla(var(--glass-border), 0.45);
+    box-shadow: 
+      var(--shadow-glass-strong),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 0 rgba(255, 51, 51, 0.12);
+    /* Override with user-specific styling */
+    background: var(--gradient-chat-user);
+    border: 1px solid hsla(var(--chat-user), 0.4);
+    box-shadow: 
+      var(--shadow-glass-medium),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .chat-message-ai {
+    background: linear-gradient(135deg, 
+      hsla(var(--glass-light), 0.25) 0%, 
+      hsla(0, 100%, 65%, 0.06) 40%, 
+      hsla(var(--glass-lighter), 0.20) 100%);
+    backdrop-filter: blur(36px) saturate(135%);
+    border: 1px solid hsla(var(--glass-border), 0.28);
+    box-shadow: 
+      var(--shadow-glass-medium),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+      inset 0 -1px 0 0 rgba(255, 51, 51, 0.08);
+    /* Override with AI-specific styling */
+    background: var(--gradient-chat-ai);
+    border: 1px solid hsla(var(--chat-ai), 0.6);
+    box-shadow: 
+      var(--shadow-glass),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* Captain image container with enhanced glass frame */
+  .captain-frame {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, 
+      hsla(var(--glass-light), 0.25) 0%, 
+      hsla(0, 100%, 65%, 0.06) 40%, 
+      hsla(var(--glass-lighter), 0.20) 100%);
+    backdrop-filter: blur(36px) saturate(135%);
+    border: 1px solid hsla(var(--glass-border), 0.28);
+    box-shadow: 
+      var(--shadow-glass-medium),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+      inset 0 -1px 0 0 rgba(255, 51, 51, 0.08);
+  }
+  
+  .captain-frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: var(--gradient-border);
+    border-radius: inherit;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask-composite: xor;
+    opacity: 0.75;
+  }
+
+  .captain-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 30%, 
+      rgba(255, 51, 51, 0.15) 0%, 
+      transparent 60%);
+    pointer-events: none;
+    mix-blend-mode: overlay;
+  }
+
+  /* Enhanced input field with cave styling */
+  .input-cave {
+    background: linear-gradient(135deg, 
+      hsla(var(--glass-light), 0.25) 0%, 
+      hsla(0, 100%, 65%, 0.06) 40%, 
+      hsla(var(--glass-lighter), 0.20) 100%);
+    backdrop-filter: blur(36px) saturate(135%);
+    border: 1px solid hsla(var(--glass-border), 0.28);
+    box-shadow: 
+      var(--shadow-glass-medium),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+      inset 0 -1px 0 0 rgba(255, 51, 51, 0.08);
+    /* Override with input-specific styling */
+    background: linear-gradient(135deg, 
+      hsla(var(--input), 0.8) 0%, 
+      hsla(var(--glass), 0.6) 100%);
+    border: 2px solid hsla(var(--glass-border), 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .input-cave:focus {
+    border-color: hsla(var(--primary), 0.6);
+    box-shadow: 
+      var(--shadow-glow),
+      inset 0 0 0 1px hsla(var(--primary), 0.2);
+    background: linear-gradient(135deg, 
+      hsla(var(--input), 0.9) 0%, 
+      hsla(var(--glass-light), 0.7) 100%);
+  }
+
+  /* Loading states with cave theme */
+  .loading-cave {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .loading-cave::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+      transparent 0%, 
+      rgba(255, 51, 51, 0.2) 50%, 
+      transparent 100%);
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  @keyframes ember-flicker {
+    0%, 100% { opacity: 1; text-shadow: 0 0 8px hsla(var(--cave-ember), 0.5); }
+    50% { opacity: 0.8; text-shadow: 0 0 12px hsla(var(--cave-ember), 0.7); }
+  }
+
+  @keyframes cave-glow {
+    0%, 100% { box-shadow: var(--shadow-glow); }
+    50% { box-shadow: var(--shadow-glow-strong); }
+  }
+
+  @keyframes cave-pulse {
+    0%, 100% { 
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% { 
+      transform: scale(1.05);
+      opacity: 0.8;
+    }
+  }
+
+  @keyframes torch-flicker {
+    0%, 100% { 
+      opacity: 1;
+      filter: brightness(1) hue-rotate(0deg);
+    }
+    25% { 
+      opacity: 0.9;
+      filter: brightness(1.1) hue-rotate(5deg);
+    }
+    50% { 
+      opacity: 0.95;
+      filter: brightness(0.9) hue-rotate(-3deg);
+    }
+    75% { 
+      opacity: 0.85;
+      filter: brightness(1.05) hue-rotate(2deg);
+    }
+  }
+
+  @keyframes ember-drift {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: translateY(-10px) scale(1.2);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-20px) scale(0.8);
+      opacity: 0;
+    }
+  }
+
+  @keyframes cave-shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-ember-flicker {
+    animation: ember-flicker 3s ease-in-out infinite;
+  }
+
+  .animate-cave-glow {
+    animation: cave-glow 4s ease-in-out infinite;
+  }
+
+  .animate-cave-pulse {
+    animation: cave-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-torch-flicker {
+    animation: torch-flicker 2.5s ease-in-out infinite;
+  }
+
+  .animate-ember-drift {
+    animation: ember-drift 3s ease-out infinite;
+  }
+
+  .animate-cave-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 51, 51, 0.2) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: cave-shimmer 2s infinite;
+  }
+
+  /* Custom scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-track-glass {
+    scrollbar-color: hsla(var(--glass-border), 0.3) transparent;
+  }
+
+  .scrollbar-thumb-glass-border {
+    scrollbar-color: hsla(var(--glass-border), 0.6) transparent;
+  }
+
+  /* Webkit scrollbar styling */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsla(var(--glass-border), 0.4);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsla(var(--glass-border), 0.6);
+  }
+}
