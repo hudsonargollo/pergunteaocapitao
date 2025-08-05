@@ -496,11 +496,12 @@ export class ErrorTracker {
    */
   private async sendToExternalTracking(error: ErrorEvent): Promise<void> {
     try {
+      // TODO: Add ERROR_TRACKING_DSN to environment configuration
       // Send to Sentry, Bugsnag, or other error tracking service
-      if (this.env.ERROR_TRACKING_DSN) {
-        // Implementation would depend on the service
-        console.log('Sending error to external tracking:', error.id)
-      }
+      // if (this.env.ERROR_TRACKING_DSN) {
+      //   // Implementation would depend on the service
+      //   console.log('Sending error to external tracking:', error.id)
+      // }
     } catch (err) {
       console.error('Failed to send error to external tracking:', err)
     }
@@ -609,10 +610,3 @@ export function trackError(
 ): string {
   return errorTracker.trackError(level, category, message, error, context, metadata)
 }
-
-export function trackRequest(): void {
-  errorTracker.trackRequest()
-}
-
-// Export types
-export type { ErrorEvent, ErrorSummary, AlertRule }

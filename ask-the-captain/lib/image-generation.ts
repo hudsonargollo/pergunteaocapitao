@@ -14,7 +14,6 @@ import { D1Client } from './d1'
 import type { 
   ImageGenerationRequest, 
   ImageGenerationResponse, 
-  CloudflareEnv,
   ResponseAnalysisResult,
   StoreImageRequest,
   CharacterConsistencyOptions 

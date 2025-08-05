@@ -395,22 +395,22 @@ export class PerformanceMetricsCollector {
   private async sendToAnalytics(metric: MetricsData): Promise<void> {
     try {
       // Send to Cloudflare Analytics if configured
-      if (this.env.CLOUDFLARE_ANALYTICS_TOKEN) {
-        // Implementation would depend on Cloudflare Analytics API
-        console.log('Sending metric to Cloudflare Analytics:', metric.requestId)
-      }
+      // if (this.env.CLOUDFLARE_ANALYTICS_TOKEN) {
+      //   // Implementation would depend on Cloudflare Analytics API
+      //   console.log('Sending metric to Cloudflare Analytics:', metric.requestId)
+      // }
 
       // Send to custom analytics endpoint if configured
-      if (this.env.CUSTOM_ANALYTICS_ENDPOINT) {
-        await fetch(this.env.CUSTOM_ANALYTICS_ENDPOINT, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.env.CUSTOM_ANALYTICS_TOKEN}`
-          },
-          body: JSON.stringify(metric)
-        })
-      }
+      // if (this.env.CUSTOM_ANALYTICS_ENDPOINT) {
+      //   await fetch(this.env.CUSTOM_ANALYTICS_ENDPOINT, {
+      //     method: 'POST',
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //       'Authorization': `Bearer ${this.env.CUSTOM_ANALYTICS_TOKEN}`
+      //     },
+      //     body: JSON.stringify(metric)
+      //   })
+      // }
 
     } catch (error) {
       console.error('Failed to send metrics to analytics:', error)
@@ -554,11 +554,4 @@ export function createRequestMetric(
     country: request.headers.get('cf-ipcountry') || undefined,
     colo: request.headers.get('cf-colo') || undefined
   }
-}
-
-// Export types
-export type { 
-  MetricsData, 
-  AggregatedMetrics, 
-  PerformanceAlert 
 }

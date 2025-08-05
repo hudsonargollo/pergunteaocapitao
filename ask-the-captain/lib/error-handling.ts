@@ -360,7 +360,7 @@ export async function withRetry<T>(
   errorContext?: string
 ): Promise<T> {
   const finalConfig = { ...DEFAULT_RETRY_CONFIG, ...config }
-  let lastError: Error
+  let lastError: Error = new Error('No attempts made')
 
   for (let attempt = 1; attempt <= finalConfig.maxAttempts; attempt++) {
     try {

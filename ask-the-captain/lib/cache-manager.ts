@@ -346,6 +346,20 @@ export class ResponseCacheManager {
   }
 
   /**
+   * Get all keys
+   */
+  keys(): string[] {
+    return Array.from(this.cache.keys())
+  }
+
+  /**
+   * Delete a specific key
+   */
+  delete(key: string): boolean {
+    return this.cache.delete(key)
+  }
+
+  /**
    * Simple string hash function
    */
   private hashString(str: string): string {
@@ -431,6 +445,20 @@ export class EmbeddingCacheManager {
    */
   clear(): void {
     this.cache.clear()
+  }
+
+  /**
+   * Get all keys
+   */
+  keys(): string[] {
+    return Array.from(this.cache.keys())
+  }
+
+  /**
+   * Delete a specific key
+   */
+  delete(key: string): boolean {
+    return this.cache.delete(key)
   }
 
   /**
@@ -528,6 +556,20 @@ export class ImageCacheManager {
    */
   clear(): void {
     this.cache.clear()
+  }
+
+  /**
+   * Get all keys
+   */
+  keys(): string[] {
+    return Array.from(this.cache.keys())
+  }
+
+  /**
+   * Delete a specific key
+   */
+  delete(key: string): boolean {
+    return this.cache.delete(key)
   }
 
   /**
@@ -635,7 +677,3 @@ export const cacheManager = new CacheManager({
     defaultTtl: 2 * 60 * 60 * 1000 // 2 hours
   }
 })
-
-// Export types and utilities
-export type { CacheEntry, CacheOptions, CacheStats }
-export { LRUCache }

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { metricsCollector, createRequestMetric } from './performance-monitoring';
-import { errorTracker, trackError, trackRequest } from './error-tracking';
+import { errorTracker, trackError } from './error-tracking';
 import { usageAnalytics, trackPageView } from './usage-analytics';
 
 export interface MonitoringContext {
@@ -40,7 +40,7 @@ export function withMonitoring<T extends any[]>(
 
     try {
       // Track request start
-      trackRequest();
+      errorTracker.trackRequest();
 
       // Track page view for GET requests to pages
       const url = new URL(request.url);
@@ -371,6 +371,3 @@ export function trackCustomEvent(
       break;
   }
 }
-
-// Export types
-export type { MonitoringContext };

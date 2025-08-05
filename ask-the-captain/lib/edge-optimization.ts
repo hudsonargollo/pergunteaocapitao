@@ -507,10 +507,3 @@ export const requestBatchManager = new RequestBatchManager({
   delayBetweenBatches: 100
 })
 export const performanceMonitor = new EdgePerformanceMonitor()
-
-// Export types
-export type { 
-  EdgeOptimizationOptions, 
-  PerformanceMetrics, 
-  BatchProcessingOptions 
-}

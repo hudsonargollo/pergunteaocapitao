@@ -5,7 +5,7 @@
  * image generation using multiple techniques for optimal results.
  */
 
-import type { CloudflareEnv } from '../types'
+// CloudflareEnv is defined globally
 
 export interface ReferenceImage {
   id: string

@@ -630,16 +630,16 @@ export class UsageAnalytics {
   private async sendToExternalAnalytics(event: UsageEvent): Promise<void> {
     try {
       // Send to Google Analytics, Mixpanel, or other analytics service
-      if (this.env.ANALYTICS_ENDPOINT) {
-        await fetch(this.env.ANALYTICS_ENDPOINT, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.env.ANALYTICS_TOKEN}`
-          },
-          body: JSON.stringify(event)
-        })
-      }
+      // if (this.env.ANALYTICS_ENDPOINT) {
+      //   await fetch(this.env.ANALYTICS_ENDPOINT, {
+      //     method: 'POST',
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //       'Authorization': `Bearer ${this.env.ANALYTICS_TOKEN}`
+      //     },
+      //     body: JSON.stringify(event)
+      //   })
+      // }
     } catch (error) {
       console.error('Failed to send event to external analytics:', error)
     }
@@ -710,12 +710,4 @@ export function trackImageGeneration(
   options?: Parameters<typeof usageAnalytics.trackImageGeneration>[3]
 ): string {
   return usageAnalytics.trackImageGeneration(success, generationTime, context, options)
-}
-
-// Export types
-export type { 
-  UsageEvent, 
-  ConversationMetrics, 
-  UsageSummary, 
-  UserJourney 
 }

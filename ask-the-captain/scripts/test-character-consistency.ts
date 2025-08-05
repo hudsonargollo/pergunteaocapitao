@@ -7,10 +7,11 @@
 
 import { generateCaptainImage, generateCaptainImageWithReferences } from '../lib/image-generation'
 import { createCharacterReferenceManager } from '../lib/character-reference'
-import type { CloudflareEnv } from '../types'
 
 // Mock environment for testing
 const mockEnv: CloudflareEnv = {
+  NODE_ENV: 'staging',
+  NEXTJS_ENV: 'test',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'test-key',
   DB: {} as any,
   VECTORIZE_INDEX: {} as any,

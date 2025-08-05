@@ -98,28 +98,28 @@ export class CacheInvalidationManager {
 
     try {
       // Invalidate response cache
-      const responseKeys = cacheManager.responses.cache?.keys() || []
+      const responseKeys = cacheManager.responses.keys() || []
       for (const key of responseKeys) {
         if (this.matchesPattern(key, pattern)) {
-          cacheManager.responses.cache?.delete(key)
+          cacheManager.responses.delete(key)
           invalidated++
         }
       }
 
       // Invalidate embedding cache
-      const embeddingKeys = cacheManager.embeddings.cache?.keys() || []
+      const embeddingKeys = cacheManager.embeddings.keys() || []
       for (const key of embeddingKeys) {
         if (this.matchesPattern(key, pattern)) {
-          cacheManager.embeddings.cache?.delete(key)
+          cacheManager.embeddings.delete(key)
           invalidated++
         }
       }
 
       // Invalidate image cache
-      const imageKeys = cacheManager.images.cache?.keys() || []
+      const imageKeys = cacheManager.images.keys() || []
       for (const key of imageKeys) {
         if (this.matchesPattern(key, pattern)) {
-          cacheManager.images.cache?.delete(key)
+          cacheManager.images.delete(key)
           invalidated++
         }
       }
@@ -546,6 +546,3 @@ export class CacheInvalidationManager {
 
 // Create singleton instance
 export const cacheInvalidationManager = new CacheInvalidationManager()
-
-// Export types
-export type { InvalidationRule, CacheHealthMetrics, WarmupStrategy }
