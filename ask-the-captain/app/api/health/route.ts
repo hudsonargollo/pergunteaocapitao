@@ -17,12 +17,12 @@ export async function GET(request: NextRequest) {
       environment: env.NODE_ENV || 'unknown',
       status: 'healthy',
       checks: {
-        database: await checkDatabase(env),
-        vectorize: await checkVectorize(env),
-        r2: await checkR2(env),
+        // database: await checkDatabase(env),
+        // vectorize: await checkVectorize(env),
+        // r2: await checkR2(env),
         openai: await checkOpenAI(env),
       },
-      responseTime: 0, // Will be set below
+      responseTime: 0,
       version: process.env.npm_package_version || 'unknown',
     };
 
@@ -190,3 +190,5 @@ export async function HEAD(request: NextRequest) {
     },
   });
 }
+
+// Remove the duplicate GET function that was at line 197

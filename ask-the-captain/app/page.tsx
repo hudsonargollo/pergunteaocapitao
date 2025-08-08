@@ -21,14 +21,14 @@ export default function Home() {
           }}
           onResponseReceived={(response) => {
             console.log('Main page: Response received:', {
-              hasImage: !!response.imageUrl,
-              responseLength: response.response.length,
-              conversationId: response.conversationId,
+              hasImage: !!response?.imageUrl,
+              responseLength: response?.response?.length || 0,
+              conversationId: response?.conversationId,
               timestamp: new Date().toISOString()
             });
             
             // Enhanced analytics for response tracking
-            if (response.imageUrl) {
+            if (response?.imageUrl) {
               console.log('Captain image updated:', {
                 imageUrl: response.imageUrl,
                 conversationId: response.conversationId

@@ -127,7 +127,7 @@ export function useAnimationPerformance(options: AnimationPerformanceOptions = {
   useEffect(() => {
     startMonitoring()
     return stopMonitoring
-  }, [startMonitoring, stopMonitoring])
+  }, []) // Remove startMonitoring and stopMonitoring from dependencies
 
   return {
     metrics,

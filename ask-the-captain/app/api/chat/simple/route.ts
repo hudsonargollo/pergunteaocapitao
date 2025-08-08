@@ -3,7 +3,22 @@ import { getCloudflareContext } from '@opennextjs/cloudflare'
 
 export async function POST(request: NextRequest) {
   try {
-    const { env } = await getCloudflareContext()
+    // Handle both local development and Cloudflare Workers environments
+    let env: any
+    let isLocalDev = false
+    
+    try {
+      // Try to get Cloudflare context (works in Workers)
+      const cloudflareContext = await getCloudflareContext()
+      env = cloudflareContext.env
+    } catch (error) {
+      // Fallback to process.env for local development
+      isLocalDev = true
+      env = {
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+        DB: null // No database in local dev for this simple route
+      }
+    }
     
     if (!env.OPENAI_API_KEY) {
       return NextResponse.json({
@@ -28,29 +43,37 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Check for improved response first
-    const messageHash = hashMessage(message)
-    const improvedResponse = await env.DB.prepare(`
-      SELECT improved_response, usage_count 
-      FROM improved_responses 
-      WHERE user_message_hash = ?
-    `).bind(messageHash).first()
+    // Only check database in production/Cloudflare Workers environment
+    if (!isLocalDev && env.DB) {
+      try {
+        // Check for improved response first
+        const messageHash = hashMessage(message)
+        const improvedResponse = await env.DB.prepare(`
+          SELECT improved_response, usage_count 
+          FROM improved_responses 
+          WHERE user_message_hash = ?
+        `).bind(messageHash).first()
 
-    if (improvedResponse) {
-      // Update usage count
-      await env.DB.prepare(`
-        UPDATE improved_responses 
-        SET usage_count = usage_count + 1, updated_at = ? 
-        WHERE user_message_hash = ?
-      `).bind(new Date().toISOString(), messageHash).run()
+        if (improvedResponse) {
+          // Update usage count
+          await env.DB.prepare(`
+            UPDATE improved_responses 
+            SET usage_count = usage_count + 1, updated_at = ? 
+            WHERE user_message_hash = ?
+          `).bind(new Date().toISOString(), messageHash).run()
 
-      return NextResponse.json({
-        response: improvedResponse.improved_response,
-        imageUrl: '/reference1-capitao-caverna-front-20250422_0526_3D Cartoon Figure_remix_01jse9j3vrfkmasmwvaw81ps2f.webp',
-        conversationId: `simple_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        isImproved: true
-      })
+          return NextResponse.json({
+            response: improvedResponse.improved_response,
+            imageUrl: '/reference1-capitao-caverna-front-20250422_0526_3D Cartoon Figure_remix_01jse9j3vrfkmasmwvaw81ps2f.webp',
+            conversationId: `simple_${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            isImproved: true
+          })
+        }
+      } catch (dbError) {
+        // Log database error but continue with OpenAI call
+        console.warn('Database error (continuing with OpenAI):', dbError)
+      }
     }
 
     // Simple direct OpenAI call with Captain persona
@@ -98,14 +121,15 @@ Responda sempre em português, sendo CONCISO e DIRETO.`
     }
 
     const data = await response.json()
-    const captainResponse = data.choices[0]?.message?.content || 'Guerreiro, algo inesperado aconteceu. Tente novamente.'
+    const captainResponse = data.choices[0]?.message?.content || 'Cavernoso, algo inesperado aconteceu. Tente novamente.'
 
     return NextResponse.json({
       response: captainResponse,
       imageUrl: '/reference1-capitao-caverna-front-20250422_0526_3D Cartoon Figure_remix_01jse9j3vrfkmasmwvaw81ps2f.webp',
       conversationId: `simple_${Date.now()}`,
       timestamp: new Date().toISOString(),
-      messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+      messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      isLocalDev: isLocalDev
     })
 
   } catch (error: any) {
@@ -114,7 +138,7 @@ Responda sempre em português, sendo CONCISO e DIRETO.`
     return NextResponse.json({
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'Erro interno do sistema, guerreiro. Mesmo na adversidade, o guerreiro encontra oportunidades de crescimento.',
+        message: 'Erro interno do sistema. Mesmo na adversidade, o guerreiro encontra oportunidades de crescimento.',
         details: {
           error: error.message,
           timestamp: new Date().toISOString()

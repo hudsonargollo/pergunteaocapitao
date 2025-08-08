@@ -92,19 +92,25 @@ class CaptainErrorHandler {
     const { captainErrorMessaging } = require('@/lib/captain-error-messaging')
     const { ErrorType } = require('@/lib/error-handling')
     
-    // Determine error type from error message
-    const errorMessage = error instanceof Error ? error.message : error.error?.message || 'Unknown error'
+    // Add null checks to prevent undefined errors
+    const errorMessage = error instanceof Error 
+      ? (error.message || 'Unknown error') 
+      : (error?.error?.message || error?.message || 'Unknown error')
+    
     let errorType = ErrorType.INTERNAL_ERROR
     
-    if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+    // Add null check before calling toLowerCase
+    const lowerErrorMessage = errorMessage?.toLowerCase() || ''
+    
+    if (lowerErrorMessage.includes('network') || lowerErrorMessage.includes('fetch')) {
       errorType = ErrorType.SERVICE_UNAVAILABLE
-    } else if (errorMessage.includes('timeout')) {
+    } else if (lowerErrorMessage.includes('timeout')) {
       errorType = ErrorType.TIMEOUT_ERROR
-    } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+    } else if (lowerErrorMessage.includes('rate limit') || lowerErrorMessage.includes('429')) {
       errorType = ErrorType.RATE_LIMIT_EXCEEDED
-    } else if (errorMessage.includes('unauthorized') || errorMessage.includes('401')) {
+    } else if (lowerErrorMessage.includes('unauthorized') || lowerErrorMessage.includes('401')) {
       errorType = ErrorType.UNAUTHORIZED
-    } else if (errorMessage.includes('server') || errorMessage.includes('500')) {
+    } else if (lowerErrorMessage.includes('server') || lowerErrorMessage.includes('500')) {
       errorType = ErrorType.SERVICE_UNAVAILABLE
     } else if (context === 'image') {
       errorType = ErrorType.IMAGE_GENERATION_FAILED
@@ -115,7 +121,7 @@ class CaptainErrorHandler {
       attemptCount: 1
     })
     
-    return captainMessage.message
+    return captainMessage?.message || 'Desculpe, algo deu errado. Tente novamente.'
   }
 
   // Get fallback image based on context using comprehensive fallback system
@@ -173,29 +179,38 @@ class CaptainErrorHandler {
 
   // Check if error is retryable
   isRetryableError(error: Error | APIError): boolean {
-    const errorMessage = error instanceof Error ? error.message : error.error?.message || ''
+    const errorMessage = error instanceof Error 
+      ? (error.message || '') 
+      : (error?.error?.message || error?.message || '')
+    
+    // Add null check and length validation
+    if (!errorMessage || errorMessage.length === 0) {
+      return false
+    }
+    
+    const lowerErrorMessage = errorMessage.toLowerCase()
     
     // Don't retry validation errors or client errors
-    if (errorMessage.includes('400') || errorMessage.includes('validation')) {
+    if (lowerErrorMessage.includes('400') || lowerErrorMessage.includes('validation')) {
       return false
     }
     
     // Don't retry unauthorized errors
-    if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+    if (lowerErrorMessage.includes('401') || lowerErrorMessage.includes('unauthorized')) {
       return false
     }
     
     // Retry network, timeout, and server errors
     return (
-      errorMessage.includes('network') ||
-      errorMessage.includes('timeout') ||
-      errorMessage.includes('fetch') ||
-      errorMessage.includes('500') ||
-      errorMessage.includes('502') ||
-      errorMessage.includes('503') ||
-      errorMessage.includes('504') ||
-      errorMessage.includes('rate limit') ||
-      errorMessage.includes('429')
+      lowerErrorMessage.includes('network') ||
+      lowerErrorMessage.includes('timeout') ||
+      lowerErrorMessage.includes('fetch') ||
+      lowerErrorMessage.includes('500') ||
+      lowerErrorMessage.includes('502') ||
+      lowerErrorMessage.includes('503') ||
+      lowerErrorMessage.includes('504') ||
+      lowerErrorMessage.includes('rate limit') ||
+      lowerErrorMessage.includes('429')
     )
   }
 }
@@ -609,6 +624,15 @@ export function AnimatedAIChat({
   const handleSendMessage = async () => {
     if (!inputValue.trim() || chatState.isTyping) return
 
+    // Add defensive check
+    if (!chatState?.messages) {
+      console.error('Chat state messages is undefined, reinitializing...')
+      chatActions.clearMessages() // This will reset to empty array
+      return
+    }
+
+    const messageCount = chatState?.messages?.length || 0
+
     // Clear any existing errors when user tries again
     if (chatState.error) {
       chatActions.setError(null)
@@ -743,7 +767,30 @@ export function AnimatedAIChat({
 
       // Automatically generate new Captain image based on response
       try {
-        await generateCaptainImage(chatResponse.response, aiResponse.id)
+        // Debug image generation request
+        const tone = analyzeResponseTone(aiResponse.content)
+        const themes = extractThemes(aiResponse.content)
+        
+        // Validate content before sending to API
+        if (!aiResponse.content || aiResponse.content.trim().length === 0) {
+          console.warn('Skipping image generation: empty response content')
+          chatActions.setGeneratingImage(false)
+          return
+        }
+        
+        if (aiResponse.content.length > 5000) {
+          console.warn('Truncating response content for image generation')
+          aiResponse.content = aiResponse.content.substring(0, 5000)
+        }
+        
+        console.log('Image generation request:', {
+          responseContent: aiResponse.content,
+          contentLength: aiResponse.content?.length,
+          tone: tone,
+          themes: themes
+        });
+        
+        await generateCaptainImage(aiResponse.content, aiResponse.id)
       } catch (imageError) {
         console.warn('Image generation failed, using comprehensive fallback system:', imageError)
         
@@ -797,8 +844,16 @@ export function AnimatedAIChat({
         chatActions.updateMessage(aiResponse.id, { imageUrl: fallbackImageUrl })
       }
 
-      // Call onResponseReceived callback
-      onResponseReceived?.(chatResponse)
+      // Call the callback with proper validation
+      if (onResponseReceived && chatResponse) {
+        // Ensure response object has required properties
+        const validatedResponse: ChatResponse = {
+          response: chatResponse.response || '',
+          imageUrl: chatResponse.imageUrl || '',
+          conversationId: chatResponse.conversationId || ''
+        };
+        onResponseReceived(validatedResponse);
+      }
 
     } catch (error) {
       console.error('Error sending message:', error)
@@ -885,6 +940,21 @@ export function AnimatedAIChat({
   // Enhanced Captain image generation with consistency validation
   const generateCaptainImage = async (responseContent: string, messageId: string) => {
     try {
+      // Validate input before processing
+      if (!responseContent || typeof responseContent !== 'string') {
+        throw new Error('Invalid response content for image generation')
+      }
+      
+      const trimmedContent = responseContent.trim()
+      if (trimmedContent.length === 0) {
+        throw new Error('Empty response content for image generation')
+      }
+      
+      if (trimmedContent.length > 5000) {
+        console.warn('Truncating response content for image generation')
+        responseContent = trimmedContent.substring(0, 5000)
+      }
+      
       // Analyze response content to determine context
       const responseContext: ResponseContext = {
         content: responseContent,
@@ -897,6 +967,12 @@ export function AnimatedAIChat({
         responseContent: responseContent,
         context: responseContext
       }
+      
+      console.log('Sending image generation request:', {
+        contentLength: responseContent.length,
+        hasContext: !!responseContext,
+        tone: responseContext.tone
+      })
 
       const imageResponse: ImageGenerationResponse = await errorHandler.withRetry(
         async (): Promise<ImageGenerationResponse> => {
@@ -983,81 +1059,20 @@ export function AnimatedAIChat({
       }
 
     } catch (error) {
-      console.error('Error generating Captain image:', error)
+      console.warn('Image generation failed:', error)
       
-      // Import comprehensive fallback system
-      const { comprehensiveFallbackSystem } = require('@/lib/comprehensive-fallback-system')
-      
-      // Use enhanced fallback system with context awareness and brand assets
-      const responseContext: ResponseContext = {
-        content: responseContent,
-        tone: analyzeResponseTone(responseContent),
-        themes: extractThemes(responseContent),
-        intensity: 'medium'
-      }
-
-      try {
-        // Get contextually appropriate fallback image
-        const fallbackResult = await comprehensiveFallbackSystem.getFallbackImage(
-          responseContext.tone,
-          {
-            preferHighQuality: true,
-            allowOfflineOnly: offlineStateManager?.isOffline() || false,
-            maxAttempts: 3
-          }
-        )
-        
-        // Load the fallback image using the consistency system
-        const loadResult = await loadCaptainImage(fallbackResult.url, responseContext)
-        
-        chatActions.setGeneratingImage(false)
-        chatActions.setCaptainImage(loadResult.imageUrl)
-        chatActions.updateMessage(messageId, { imageUrl: loadResult.imageUrl })
-        
-        // Show appropriate feedback based on fallback source
-        if (fallbackResult.source === 'emergency') {
-          window.dispatchEvent(new CustomEvent('show-feedback', {
-            detail: { 
-              type: 'warning', 
-              message: 'Usando imagem de emergência - algumas funcionalidades limitadas', 
-              duration: 3000 
-            }
-          }))
-        } else if (fallbackResult.usedFallback) {
-          window.dispatchEvent(new CustomEvent('show-feedback', {
-            detail: { 
-              type: 'info', 
-              message: 'Usando imagem de fallback contextual', 
-              duration: 2000 
-            }
-          }))
-        }
-        
-      } catch (fallbackError) {
-        console.error('Comprehensive fallback also failed:', fallbackError)
-        
-        // Absolute last resort - use basic placeholder
-        const emergencyImage = '/placeholder-captain.svg'
-        
-        chatActions.setGeneratingImage(false)
-        chatActions.setCaptainImage(emergencyImage)
-        chatActions.updateMessage(messageId, { imageUrl: emergencyImage })
-        
-        window.dispatchEvent(new CustomEvent('show-feedback', {
-          detail: { 
-            type: 'error', 
-            message: 'Falha na geração de imagem - usando placeholder básico', 
-            duration: 4000 
-          }
-        }))
-      }
-      
-      throw error
+      // Use fallback image
+      const fallbackUrl = getFallbackImageUrl('error')
+      chatActions.setGeneratingImage(false)
+      chatActions.setCaptainImage(fallbackUrl)
+      chatActions.updateMessage(messageId, { imageUrl: fallbackUrl })
     }
   }
 
-  // Helper functions for response analysis
+  // Helper functions for response analysis with proper null checking
   const analyzeResponseTone = (content: string): ResponseContext['tone'] => {
+    if (!content || content.length === 0) return 'supportive'
+    
     const lowerContent = content.toLowerCase()
     
     if (lowerContent.includes('parabéns') || lowerContent.includes('muito bem') || lowerContent.includes('excelente')) {
@@ -1074,6 +1089,8 @@ export function AnimatedAIChat({
   }
 
   const extractThemes = (content: string): string[] => {
+    if (!content || content.length === 0) return []
+    
     const themes: string[] = []
     const lowerContent = content.toLowerCase()
     
@@ -1088,6 +1105,8 @@ export function AnimatedAIChat({
   }
 
   const analyzeIntensity = (content: string): ResponseContext['intensity'] => {
+    if (!content || content.length === 0) return 'medium'
+    
     const lowerContent = content.toLowerCase()
     const intensityWords = ['muito', 'extremamente', 'totalmente', 'completamente', 'absolutamente']
     const urgencyWords = ['agora', 'imediatamente', 'urgente', 'rápido']
