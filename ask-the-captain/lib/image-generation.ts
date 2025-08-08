@@ -9,6 +9,8 @@ import { OpenAIClient } from './openai'
 import { analyzeResponseForImageGeneration, generateImagePrompt } from './response-analysis'
 import { ImageStorageService, createImageStorageService } from './image-storage'
 import { CharacterReferenceManager, createCharacterReferenceManager } from './character-reference'
+import { ContextualImageGenerator, createContextualImageGenerator } from './contextual-image-generation'
+import { FallbackImageSystem, createFallbackImageSystem } from './fallback-image-system'
 import { R2Client } from './r2'
 import { D1Client } from './d1'
 import type { 
@@ -37,6 +39,8 @@ export class ImageGenerationPipeline {
   private openaiClient: OpenAIClient
   private imageStorage: ImageStorageService
   private characterReference: CharacterReferenceManager
+  private contextualGenerator: ContextualImageGenerator
+  private fallbackSystem: FallbackImageSystem
 
   constructor(env: CloudflareEnv) {
     this.openaiClient = new OpenAIClient(env.OPENAI_API_KEY)
@@ -48,6 +52,8 @@ export class ImageGenerationPipeline {
     // Create image storage service and character reference manager
     this.imageStorage = createImageStorageService(r2Client, d1Client)
     this.characterReference = createCharacterReferenceManager(env)
+    this.contextualGenerator = createContextualImageGenerator()
+    this.fallbackSystem = createFallbackImageSystem()
   }
 
   /**
@@ -58,38 +64,103 @@ export class ImageGenerationPipeline {
     options: ImageGenerationOptions = {}
   ): Promise<ImageGenerationResponse> {
     try {
-      // Step 1: Analyze response for tone, themes, and visual parameters
-      const analysisResult = analyzeResponseForImageGeneration(responseContent)
+      // Step 1: Generate contextual image context using new system
+      const imageContext = this.contextualGenerator.generateImageContext(responseContent, {
+        enhanceCharacterConsistency: options.characterConsistency?.useReferenceImages ?? true,
+        includeEnvironmentDetails: true,
+        addTechnicalSpecs: true,
+        customSeed: options.characterConsistency?.characterSeed
+      })
       
-      // Step 2: Enhance prompt with character consistency
-      const enhancedPrompt = await this.generateCharacterConsistentPrompt(
-        analysisResult,
-        responseContent,
-        options.characterConsistency
-      )
+      // Step 2: Use the generated character-consistent prompt
+      const enhancedPrompt = imageContext.characterPrompt
       
       // Step 3: Generate image using DALL-E 3
       const imageUrl = await this.generateImage(enhancedPrompt, options)
       
-      // Step 4: Download and store image in R2
+      // Step 4: Validate image consistency (optional)
+      if (options.characterConsistency?.useReferenceImages) {
+        const validation = await this.contextualGenerator.validateImageGeneration(imageUrl, imageContext)
+        if (validation.qualityScore < 0.8) {
+          console.warn('Generated image quality below threshold:', validation.issues)
+          
+          // If validation fails significantly, use fallback
+          if (validation.qualityScore < 0.6) {
+            console.warn('Image quality too low, using fallback instead')
+            const fallbackResult = await this.generateFallbackImageWithContext(responseContent, 'validation_failed')
+            return fallbackResult
+          }
+        }
+      }
+      
+      // Step 5: Download and store image in R2
       const storageResult = await this.storeGeneratedImage(
         imageUrl,
-        analysisResult,
+        {
+          tone: {
+            primary: imageContext.toneAnalysis.primaryTone,
+            intensity: imageContext.toneAnalysis.intensity,
+            themes: imageContext.toneAnalysis.themes,
+            visualParameters: {
+              pose: imageContext.selectedVariation.pose,
+              expression: imageContext.selectedVariation.expression,
+              environment: imageContext.selectedVariation.environmentFocus || 'main cave chamber',
+              lighting: imageContext.selectedVariation.lighting
+            }
+          },
+          selectedFrame: 'CONTEXTUAL',
+          promptParameters: {
+            pose: imageContext.selectedVariation.pose,
+            expression: imageContext.selectedVariation.expression,
+            environment: imageContext.selectedVariation.environmentFocus || 'main cave chamber',
+            lighting: imageContext.selectedVariation.lighting,
+            cameraAngle: imageContext.selectedVariation.cameraAngle,
+            emotionalContext: imageContext.selectedVariation.emotionalContext
+          }
+        },
         responseContent
       )
       
       return {
         imageUrl: storageResult.data!.publicUrl,
         imageId: storageResult.data!.imageId,
-        promptParameters: analysisResult.promptParameters
+        promptParameters: {
+          tone: imageContext.toneAnalysis.primaryTone,
+          intensity: imageContext.toneAnalysis.intensity,
+          themes: imageContext.toneAnalysis.themes,
+          pose: imageContext.selectedVariation.pose,
+          expression: imageContext.selectedVariation.expression,
+          environment: imageContext.selectedVariation.environmentFocus,
+          lighting: imageContext.selectedVariation.lighting,
+          cameraAngle: imageContext.selectedVariation.cameraAngle
+        }
       }
     } catch (error) {
-      throw this.createImageGenerationError(
-        'GENERATION_PIPELINE_FAILED',
-        'Failed to complete image generation pipeline',
-        'generateContextualImage',
-        error as Error
-      )
+      // Use fallback system when generation fails
+      console.warn('Image generation failed, using fallback:', error)
+      
+      try {
+        // Determine fallback reason based on error type
+        let fallbackReason: 'generation_failed' | 'validation_failed' | 'timeout' | 'rate_limited' | 'network_error' = 'generation_failed'
+        
+        const errorCode = (error as any).code
+        if (errorCode === 'RATE_LIMITED') {
+          fallbackReason = 'rate_limited'
+        } else if (errorCode === 'NETWORK_ERROR') {
+          fallbackReason = 'network_error'
+        } else if (errorCode === 'TIMEOUT') {
+          fallbackReason = 'timeout'
+        }
+        
+        return await this.generateFallbackImageWithContext(responseContent, fallbackReason)
+      } catch (fallbackError) {
+        throw this.createImageGenerationError(
+          'GENERATION_PIPELINE_FAILED',
+          'Failed to complete image generation pipeline and fallback failed',
+          'generateContextualImage',
+          error as Error
+        )
+      }
     }
   }
 
@@ -209,8 +280,20 @@ NEGATIVE PROMPTS:
 
       return imageUrl
     } catch (error) {
+      const errorMessage = (error as Error).message.toLowerCase()
+      
+      // Determine specific error type for better fallback selection
+      let errorCode = 'DALLE_GENERATION_FAILED'
+      if (errorMessage.includes('rate limit') || errorMessage.includes('quota')) {
+        errorCode = 'RATE_LIMITED'
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('network')) {
+        errorCode = 'NETWORK_ERROR'
+      } else if (errorMessage.includes('content policy') || errorMessage.includes('safety')) {
+        errorCode = 'CONTENT_POLICY_VIOLATION'
+      }
+      
       throw this.createImageGenerationError(
-        'DALLE_GENERATION_FAILED',
+        errorCode,
         'Failed to generate image with DALL-E 3',
         'generateImage',
         error as Error
@@ -363,7 +446,66 @@ NEGATIVE PROMPTS:
   }
 
   /**
-   * Generate fallback image for error cases
+   * Generate fallback image with context awareness
+   */
+  async generateFallbackImageWithContext(
+    responseContent: string,
+    fallbackReason: 'generation_failed' | 'validation_failed' | 'timeout' | 'rate_limited' | 'network_error'
+  ): Promise<ImageGenerationResponse> {
+    try {
+      // Generate context for the response
+      const imageContext = this.contextualGenerator.generateImageContext(responseContent)
+      
+      // Get appropriate fallback image
+      const fallbackImage = this.fallbackSystem.getFallbackForContext(imageContext, fallbackReason)
+      
+      // Validate the fallback image
+      const validation = await this.fallbackSystem.validateFallbackImage(fallbackImage.id)
+      
+      if (!validation.imageExists || !validation.characterConsistent) {
+        // Use universal fallback if specific fallback is invalid
+        const universalFallback = this.fallbackSystem.selectFallbackImage({
+          primaryTone: 'universal',
+          intensity: 'medium',
+          themes: [],
+          fallbackReason,
+          preferHighQuality: false
+        })
+        
+        return {
+          imageUrl: universalFallback.url,
+          imageId: `fallback-${universalFallback.id}`,
+          promptParameters: {
+            tone: imageContext.toneAnalysis.primaryTone,
+            fallbackReason,
+            fallbackImageId: universalFallback.id,
+            fallbackMessage: this.fallbackSystem.getFallbackMessage(fallbackReason, imageContext.toneAnalysis.primaryTone)
+          }
+        }
+      }
+      
+      return {
+        imageUrl: fallbackImage.url,
+        imageId: `fallback-${fallbackImage.id}`,
+        promptParameters: {
+          tone: imageContext.toneAnalysis.primaryTone,
+          fallbackReason,
+          fallbackImageId: fallbackImage.id,
+          fallbackMessage: this.fallbackSystem.getFallbackMessage(fallbackReason, imageContext.toneAnalysis.primaryTone)
+        }
+      }
+    } catch (error) {
+      throw this.createImageGenerationError(
+        'FALLBACK_GENERATION_FAILED',
+        'Failed to generate fallback image with context',
+        'generateFallbackImageWithContext',
+        error as Error
+      )
+    }
+  }
+
+  /**
+   * Generate fallback image for error cases (legacy method)
    */
   async generateFallbackImage(): Promise<ImageGenerationResponse> {
     const fallbackPrompt = `

@@ -1,0 +1,156 @@
+{
+  "timestamp": "2025-08-08T02:49:12.845Z",
+  "totalSuites": 9,
+  "totalTests": 9,
+  "passedTests": 0,
+  "failedTests": 9,
+  "skippedTests": 0,
+  "totalDuration": 7682,
+  "overallCoverage": 0,
+  "suiteResults": [
+    {
+      "suite": "Unit Tests",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 1042,
+      "errors": [
+        "Command failed: npx vitest run app/components/ui/__tests__/animated-ai-chat.test.tsx --coverage --reporter=json --testTimeout=30000\n MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'\n\n"
+      ],
+      "warnings": []
+    },
+    {
+      "suite": "Integration Tests",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 779,
+      "errors": [
+        "Command failed: npx vitest run app/components/ui/__tests__/animated-ai-chat.integration.test.tsx --coverage --reporter=json --testTimeout=60000\n MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'\n\n"
+      ],
+      "warnings": []
+    },
+    {
+      "suite": "Visual Regression Tests",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 738,
+      "errors": [
+        "Command failed: npx vitest run app/components/ui/__tests__/animated-ai-chat.visual.test.tsx --coverage --reporter=json --testTimeout=45000\n MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'\n\n"
+      ],
+      "warnings": []
+    },
+    {
+      "suite": "Accessibility Tests",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 678,
+      "errors": [
+        "Command failed: npx vitest run app/components/ui/__tests__/animated-ai-chat.accessibility.test.tsx --coverage --reporter=json --testTimeout=45000\n MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'\n\n"
+      ],
+      "warnings": []
+    },
+    {
+      "suite": "Performance Tests",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 995,
+      "errors": [
+        "Command failed: npx vitest run app/components/ui/__tests__/animated-ai-chat.performance.test.tsx --coverage --reporter=json --testTimeout=90000\n MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'\n\n"
+      ],
+      "warnings": []
+    },
+    {
+      "suite": "Memory Usage Tests",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 1090,
+      "errors": [
+        "Command failed: npx vitest run app/components/ui/__tests__/animated-ai-chat.memory.test.tsx --coverage --reporter=json --testTimeout=120000\n MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'\n\n"
+      ],
+      "warnings": []
+    },
+    {
+      "suite": "Load Tests",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 934,
+      "errors": [
+        "Command failed: npx vitest run app/components/ui/__tests__/animated-ai-chat.load.test.tsx --coverage --reporter=json --testTimeout=180000\n MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'\n\n"
+      ],
+      "warnings": []
+    },
+    {
+      "suite": "Image Consistency Tests",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 702,
+      "errors": [
+        "Command failed: npx vitest run app/components/ui/__tests__/animated-ai-chat.image-consistency.test.tsx --coverage --reporter=json --testTimeout=90000\n MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'\n\n"
+      ],
+      "warnings": []
+    },
+    {
+      "suite": "End-to-End Tests",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "duration": 721,
+      "errors": [
+        "Command failed: npx vitest run app/components/ui/__tests__/animated-ai-chat.e2e.test.tsx --coverage --reporter=json --testTimeout=120000\n MISSING DEPENDENCY  Cannot find dependency '@vitest/coverage-v8'\n\n"
+      ],
+      "warnings": []
+    }
+  ],
+  "summary": {
+    "unit": {
+      "passed": 0,
+      "failed": 1,
+      "coverage": 0
+    },
+    "integration": {
+      "passed": 0,
+      "failed": 2,
+      "coverage": 0
+    },
+    "visual": {
+      "passed": 0,
+      "failed": 1,
+      "coverage": 0
+    },
+    "accessibility": {
+      "passed": 0,
+      "failed": 1,
+      "coverage": 0
+    },
+    "performance": {
+      "passed": 0,
+      "failed": 3,
+      "coverage": 0
+    },
+    "e2e": {
+      "passed": 0,
+      "failed": 1,
+      "coverage": 0
+    }
+  },
+  "recommendations": [
+    "Improve test coverage for: Unit Tests, Integration Tests, Visual Regression Tests, Accessibility Tests, Performance Tests, Memory Usage Tests, Load Tests, Image Consistency Tests, End-to-End Tests",
+    "Address test errors in: Unit Tests, Integration Tests, Visual Regression Tests, Accessibility Tests, Performance Tests, Memory Usage Tests, Load Tests, Image Consistency Tests, End-to-End Tests",
+    "Critical: Fix accessibility issues to ensure WCAG compliance"
+  ],
+  "criticalIssues": [
+    "Critical test failure in Unit Tests: 1 failed tests",
+    "Critical test failure in Integration Tests: 1 failed tests",
+    "Critical test failure in Accessibility Tests: 1 failed tests",
+    "Critical test failure in End-to-End Tests: 1 failed tests",
+    "Zero test coverage detected in: Unit Tests, Integration Tests, Visual Regression Tests, Accessibility Tests, Performance Tests, Memory Usage Tests, Load Tests, Image Consistency Tests, End-to-End Tests",
+    "Complete test suite failures: Unit Tests, Integration Tests, Visual Regression Tests, Accessibility Tests, Performance Tests, Memory Usage Tests, Load Tests, Image Consistency Tests, End-to-End Tests"
+  ]
+}

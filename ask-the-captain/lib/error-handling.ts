@@ -210,49 +210,10 @@ export class CaptainError extends Error {
   }
 
   private generateUserMessage(type: ErrorType): string {
-    const userMessages: Record<ErrorType, string> = {
-      [ErrorType.VALIDATION_ERROR]: 'Guerreiro, verifique sua mensagem e tente novamente. A disciplina começa com a atenção aos detalhes.',
-      [ErrorType.INVALID_JSON]: 'Formato de dados inválido. Reorganize sua abordagem e tente novamente.',
-      [ErrorType.MISSING_PARAMETER]: 'Informações incompletas. Um guerreiro sempre verifica seus recursos antes da batalha.',
-      [ErrorType.RATE_LIMIT_EXCEEDED]: 'Muitas tentativas, guerreiro. A paciência é uma virtude do cave mode. Aguarde um momento.',
-      
-      [ErrorType.MISSING_API_KEY]: 'Sistema não configurado adequadamente. Entre em contato com o suporte.',
-      [ErrorType.INVALID_API_KEY]: 'Credenciais inválidas. Verifique a configuração do sistema.',
-      [ErrorType.UNAUTHORIZED]: 'Acesso não autorizado. Verifique suas permissões.',
-      
-      [ErrorType.OPENAI_API_ERROR]: 'Dificuldades técnicas temporárias, guerreiro. A persistência é fundamental - tente novamente.',
-      [ErrorType.OPENAI_RATE_LIMIT]: 'Sistema sobrecarregado. Use este tempo para refletir sobre sua próxima ação.',
-      [ErrorType.OPENAI_QUOTA_EXCEEDED]: 'Limite de uso atingido. Mesmo na caverna, os recursos são finitos.',
-      [ErrorType.EMBEDDING_GENERATION_FAILED]: 'Falha no processamento da consulta. Reformule sua pergunta e tente novamente.',
-      [ErrorType.CHAT_COMPLETION_FAILED]: 'Não consegui processar sua mensagem no momento. A persistência vence os obstáculos.',
-      [ErrorType.IMAGE_GENERATION_FAILED]: 'Falha na geração da imagem. Continuemos com o texto - a essência está na mensagem.',
-      
-      [ErrorType.VECTORIZE_ERROR]: 'Sistema de busca temporariamente indisponível. Foque no que você pode controlar agora.',
-      [ErrorType.VECTORIZE_TIMEOUT]: 'Busca demorou mais que o esperado. A paciência é uma virtude do guerreiro.',
-      [ErrorType.D1_DATABASE_ERROR]: 'Problema no armazenamento de dados. Seus progressos não se perdem - continue.',
-      [ErrorType.R2_STORAGE_ERROR]: 'Falha no armazenamento de arquivos. O importante é a ação, não o registro.',
-      
-      [ErrorType.SEMANTIC_SEARCH_FAILED]: 'Sistema de busca indisponível. Mas lembre-se: a verdadeira sabedoria vem da ação.',
-      [ErrorType.KNOWLEDGE_BASE_UNAVAILABLE]: 'Base de conhecimento temporariamente inacessível. Use sua experiência interna.',
-      [ErrorType.CONTEXT_PROCESSING_FAILED]: 'Dificuldade no processamento. Simplifique sua abordagem e tente novamente.',
-      
-      [ErrorType.IMAGE_DOWNLOAD_FAILED]: 'Falha no download da imagem. O foco deve estar na mensagem, não na visualização.',
-      [ErrorType.IMAGE_UPLOAD_FAILED]: 'Falha no upload da imagem. Tentarei novamente - a persistência é chave.',
-      [ErrorType.IMAGE_PROCESSING_FAILED]: 'Erro no processamento da imagem. Continuemos sem ela - a ação é o que importa.',
-      [ErrorType.STORAGE_FAILED]: 'Falha no armazenamento. Seus progressos reais estão nas suas ações, não nos registros.',
-      [ErrorType.METADATA_RETRIEVAL_FAILED]: 'Falha na recuperação de informações. Foque no presente e na próxima ação.',
-      
-      [ErrorType.INTERNAL_ERROR]: 'Erro interno do sistema. Mesmo na adversidade, o guerreiro encontra oportunidades.',
-      [ErrorType.SERVICE_UNAVAILABLE]: 'Serviço temporariamente indisponível. Use este tempo para reflexão e planejamento.',
-      [ErrorType.TIMEOUT_ERROR]: 'Operação demorou mais que o esperado. A paciência é fundamental no cave mode.',
-      [ErrorType.MEMORY_LIMIT_EXCEEDED]: 'Sistema sobrecarregado. Simplifique sua abordagem e tente novamente.',
-      
-      [ErrorType.DATABASE_CONSTRAINT_VIOLATION]: 'Conflito nos dados. Revise suas informações e tente novamente.',
-      [ErrorType.VECTOR_INDEX_CORRUPTION]: 'Sistema de busca corrompido. Entre em contato com o suporte técnico.',
-      [ErrorType.DATA_INTEGRITY_ERROR]: 'Inconsistência nos dados. Verificarei a integridade e continuaremos.'
-    }
-
-    return userMessages[type] || 'Obstáculo temporário, guerreiro. A persistência é a chave para superar qualquer desafio.'
+    // Import and use the enhanced Captain persona messaging system
+    const { captainErrorMessaging } = require('./captain-error-messaging')
+    const captainMessage = captainErrorMessaging.getCaptainErrorMessage(type)
+    return captainMessage.message
   }
 
   private isRetryableByDefault(type: ErrorType): boolean {

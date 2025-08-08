@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { OpenAIClient } from '@/lib/openai'
 import { ImageStorageService } from '@/lib/image-storage'
 import { R2Client } from '@/lib/r2'
@@ -51,7 +52,7 @@ async function imageGenerationHandler(request: NextRequest, context: MonitoringC
   
   try {
     // Get Cloudflare environment bindings
-    const env = process.env as any as CloudflareEnv
+    const { env } = await getCloudflareContext()
     
     if (!env.OPENAI_API_KEY) {
       throw new CaptainError(
@@ -362,7 +363,7 @@ async function getImageMetadataHandler(request: NextRequest, context: Monitoring
     }
 
     // Get Cloudflare environment bindings
-    const env = process.env as any as CloudflareEnv
+    const { env } = await getCloudflareContext()
     const d1Client = new D1Client(env.DB)
     const r2Client = new R2Client(env.R2_BUCKET, 'ask-the-captain')
     const imageStorage = new ImageStorageService(r2Client, d1Client)

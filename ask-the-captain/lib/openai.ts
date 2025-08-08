@@ -45,14 +45,40 @@ export class OpenAIClient {
       maxTokens = 1000
     } = options
 
-    const response = await this.client.chat.completions.create({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens
-    })
+    try {
+      const response = await this.client.chat.completions.create({
+        model,
+        messages,
+        temperature,
+        max_tokens: maxTokens
+      })
 
-    return response.choices[0]?.message?.content || ''
+      return response.choices[0]?.message?.content || ''
+    } catch (error: any) {
+      // If the OpenAI client fails, try direct fetch as fallback
+      console.warn('OpenAI client failed, trying direct fetch:', error.message)
+      
+      const fetchResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.client.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature,
+          max_tokens: maxTokens
+        })
+      })
+      
+      if (!fetchResponse.ok) {
+        throw new Error(`OpenAI API error: ${fetchResponse.status} ${fetchResponse.statusText}`)
+      }
+      
+      const data = await fetchResponse.json()
+      return data.choices[0]?.message?.content || ''
+    }
   }
 
   async generateImage(

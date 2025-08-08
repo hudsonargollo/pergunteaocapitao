@@ -9,6 +9,9 @@ interface CaptainImageLoaderProps {
   hasError?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
+  contextualVariation?: 'supportive' | 'challenging' | 'instructional' | 'motivational' | 'default';
+  progress?: number;
+  retryCount?: number;
 }
 
 const CaptainImageLoader: React.FC<CaptainImageLoaderProps> = ({
@@ -16,7 +19,10 @@ const CaptainImageLoader: React.FC<CaptainImageLoaderProps> = ({
   isLoading = false,
   hasError = false,
   size = 'md',
-  className
+  className,
+  contextualVariation = 'default',
+  progress = 0,
+  retryCount = 0
 }) => {
   // Size configurations for different loader sizes
   const sizeConfig = {
@@ -58,15 +64,59 @@ const CaptainImageLoader: React.FC<CaptainImageLoaderProps> = ({
 
   const loadingState = getLoadingState();
 
-  // Cave-themed spinner component
+  // Get contextual colors based on variation
+  const getContextualColors = () => {
+    switch (contextualVariation) {
+      case 'supportive':
+        return {
+          primary: 'border-cave-ember/40 border-t-cave-ember',
+          secondary: 'border-cave-ember/20 border-t-cave-ember/60',
+          center: 'bg-cave-ember',
+          glow: 'shadow-[0_0_8px_rgba(255,165,0,0.6)]'
+        };
+      case 'challenging':
+        return {
+          primary: 'border-cave-red/40 border-t-cave-red',
+          secondary: 'border-cave-red/20 border-t-cave-red/60',
+          center: 'bg-cave-red',
+          glow: 'shadow-[0_0_8px_rgba(255,51,51,0.6)]'
+        };
+      case 'instructional':
+        return {
+          primary: 'border-cave-torch/40 border-t-cave-torch',
+          secondary: 'border-cave-torch/20 border-t-cave-torch/60',
+          center: 'bg-cave-torch',
+          glow: 'shadow-[0_0_8px_rgba(255,215,0,0.6)]'
+        };
+      case 'motivational':
+        return {
+          primary: 'border-cave-red/50 border-t-cave-red',
+          secondary: 'border-cave-red/25 border-t-cave-red/70',
+          center: 'bg-cave-red',
+          glow: 'shadow-[0_0_12px_rgba(255,51,51,0.8)]'
+        };
+      default:
+        return {
+          primary: 'border-primary/30 border-t-primary',
+          secondary: 'border-primary/10 border-t-primary/50',
+          center: 'bg-cave-ember',
+          glow: 'shadow-glow'
+        };
+    }
+  };
+
+  const colors = getContextualColors();
+
+  // Enhanced cave-themed spinner component with contextual colors
   const CaveSpinner = () => (
     <div className="relative">
-      {/* Main spinner ring */}
+      {/* Main spinner ring with contextual colors */}
       <div 
         className={cn(
           config.spinner,
-          'border-primary/30 border-t-primary rounded-full animate-spin',
-          'shadow-glow'
+          colors.primary,
+          'rounded-full animate-spin',
+          colors.glow
         )}
         aria-hidden="true"
       />
@@ -75,47 +125,63 @@ const CaptainImageLoader: React.FC<CaptainImageLoaderProps> = ({
       <div 
         className={cn(
           config.spinner,
-          'absolute inset-0 border-primary/10 border-t-primary/50 rounded-full animate-spin',
-          'animate-pulse'
+          'absolute inset-0',
+          colors.secondary,
+          'rounded-full animate-spin animate-pulse'
         )}
         style={{ animationDirection: 'reverse', animationDuration: '3s' }}
         aria-hidden="true"
       />
       
-      {/* Center ember effect */}
+      {/* Center ember effect with contextual color */}
       <div 
         className="absolute inset-0 flex items-center justify-center"
         aria-hidden="true"
       >
         <div 
-          className="w-1 h-1 bg-cave-ember rounded-full animate-pulse shadow-glow"
-          style={{ 
-            boxShadow: '0 0 4px hsl(var(--cave-ember)), 0 0 8px hsl(var(--cave-ember))' 
-          }}
+          className={cn(
+            'w-1 h-1 rounded-full animate-pulse',
+            colors.center,
+            colors.glow
+          )}
         />
       </div>
+
+      {/* Progress indicator if available */}
+      {progress > 0 && (
+        <div 
+          className="absolute inset-0 flex items-center justify-center"
+          aria-hidden="true"
+        >
+          <span className={cn(config.text, 'text-cave-off-white font-medium')}>
+            {Math.round(progress)}%
+          </span>
+        </div>
+      )}
     </div>
   );
 
-  // Generating animation with enhanced cave effects
+  // Enhanced generating animation with contextual cave effects
   const GeneratingAnimation = () => (
     <div className="relative">
-      {/* Outer ring with cave glow */}
+      {/* Outer ring with contextual cave glow */}
       <div 
         className={cn(
           config.spinner,
-          'border-2 border-primary/20 rounded-full animate-spin',
-          'shadow-glow-strong'
+          'border-2 rounded-full animate-spin',
+          colors.primary.replace('border-t-', 'border-'),
+          colors.glow
         )}
         style={{ animationDuration: '2s' }}
         aria-hidden="true"
       />
       
-      {/* Middle ring */}
+      {/* Middle ring with contextual colors */}
       <div 
         className={cn(
           config.spinner,
-          'absolute inset-1 border-2 border-accent/30 rounded-full animate-spin',
+          'absolute inset-1 border-2 rounded-full animate-spin',
+          colors.secondary.replace('border-t-', 'border-'),
           'shadow-glow'
         )}
         style={{ 
@@ -125,15 +191,16 @@ const CaptainImageLoader: React.FC<CaptainImageLoaderProps> = ({
         aria-hidden="true"
       />
       
-      {/* Inner core with pulsing effect */}
+      {/* Inner core with contextual pulsing effect */}
       <div 
         className="absolute inset-0 flex items-center justify-center"
         aria-hidden="true"
       >
         <div 
           className={cn(
-            'w-3 h-3 bg-gradient-to-br from-primary to-accent rounded-full',
-            'animate-pulse shadow-glow-strong'
+            'w-3 h-3 rounded-full animate-pulse',
+            colors.center,
+            colors.glow
           )}
           style={{
             animation: 'pulse 1.5s ease-in-out infinite, cave-glow 2s ease-in-out infinite'
@@ -141,20 +208,37 @@ const CaptainImageLoader: React.FC<CaptainImageLoaderProps> = ({
         />
       </div>
       
-      {/* Surrounding ember particles */}
+      {/* Surrounding ember particles with contextual colors */}
       <div className="absolute inset-0" aria-hidden="true">
-        {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-0.5 h-0.5 bg-cave-ember rounded-full animate-ping"
-            style={{
-              top: `${20 + Math.sin(i * Math.PI / 3) * 30}%`,
-              left: `${50 + Math.cos(i * Math.PI / 3) * 30}%`,
-              animationDelay: `${i * 0.3}s`,
-              animationDuration: '2s'
-            }}
-          />
-        ))}
+        {[...Array(8)].map((_, i) => {
+          const angle = (i * Math.PI * 2) / 8;
+          const radius = 35;
+          return (
+            <div
+              key={i}
+              className={cn(
+                'absolute w-0.5 h-0.5 rounded-full animate-ping',
+                colors.center
+              )}
+              style={{
+                top: `${50 + Math.sin(angle) * radius}%`,
+                left: `${50 + Math.cos(angle) * radius}%`,
+                animationDelay: `${i * 0.2}s`,
+                animationDuration: '2.5s'
+              }}
+            />
+          );
+        })}
+      </div>
+      
+      {/* Generation progress text */}
+      <div 
+        className="absolute inset-0 flex items-center justify-center mt-12"
+        aria-hidden="true"
+      >
+        <span className={cn(config.text, 'text-cave-off-white/80 font-medium animate-pulse')}>
+          Materializando...
+        </span>
       </div>
     </div>
   );
@@ -230,22 +314,48 @@ const CaptainImageLoader: React.FC<CaptainImageLoaderProps> = ({
         {getAnimationComponent()}
       </div>
       
-      {/* Loading text */}
-      <span 
-        className={cn(
-          config.text,
-          'font-medium text-center',
-          loadingState === 'error' ? 'text-destructive' : 'text-cave-secondary'
+      {/* Loading text with contextual information */}
+      <div className="flex flex-col items-center space-y-1">
+        <span 
+          className={cn(
+            config.text,
+            'font-medium text-center',
+            loadingState === 'error' ? 'text-destructive' : 'text-cave-secondary'
+          )}
+        >
+          {getLoadingMessage()}
+        </span>
+        
+        {/* Contextual variation indicator */}
+        {contextualVariation !== 'default' && loadingState === 'generating' && (
+          <span className={cn(
+            'text-xs text-cave-mist/60 capitalize',
+            'animate-pulse'
+          )}>
+            {contextualVariation}
+          </span>
         )}
-      >
-        {getLoadingMessage()}
-      </span>
+        
+        {/* Retry count indicator */}
+        {retryCount > 0 && loadingState === 'error' && (
+          <span className="text-xs text-destructive/80">
+            Tentativa {retryCount + 1}/3
+          </span>
+        )}
+        
+        {/* Progress percentage */}
+        {progress > 0 && loadingState === 'loading' && (
+          <span className="text-xs text-cave-ember font-medium">
+            {Math.round(progress)}%
+          </span>
+        )}
+      </div>
       
-      {/* Screen reader text */}
+      {/* Enhanced screen reader text */}
       <span className="sr-only">
-        {loadingState === 'generating' && 'Gerando nova imagem contextual do Capitão Caverna'}
-        {loadingState === 'loading' && 'Carregando imagem do Capitão Caverna'}
-        {loadingState === 'error' && 'Erro ao carregar imagem do Capitão Caverna'}
+        {loadingState === 'generating' && `Gerando nova imagem contextual do Capitão Caverna - Variação ${contextualVariation}`}
+        {loadingState === 'loading' && `Carregando imagem do Capitão Caverna ${progress > 0 ? `- ${Math.round(progress)}% concluído` : ''}`}
+        {loadingState === 'error' && `Erro ao carregar imagem do Capitão Caverna${retryCount > 0 ? ` - Tentativa ${retryCount + 1} de 3` : ''}`}
       </span>
     </div>
   );

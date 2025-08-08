@@ -1,0 +1,14 @@
+<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cave entrance shape -->
+  <path d="M8 32C8 32 12 8 20 8C28 8 32 32 32 32H8Z" fill="#3C3C3C" stroke="#FF3333" stroke-width="1"/>
+  
+  <!-- Red triangle logo -->
+  <polygon points="20,12 16,20 24,20" fill="#FF3333"/>
+  
+  <!-- Text -->
+  <text x="40" y="16" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#FFFFFF">MODO</text>
+  <text x="40" y="28" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#FFFFFF">CAVERNA</text>
+  
+  <!-- Subtitle -->
+  <text x="40" y="36" font-family="Arial, sans-serif" font-size="6" fill="#E0E0E0">TRANSFORMAÇÃO DISCIPLINADA</text>
+</svg>

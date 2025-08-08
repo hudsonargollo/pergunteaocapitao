@@ -1,41 +1,43 @@
 'use client';
 
-import RealTimeChatInterface from '@/app/components/chat/RealTimeChatInterface';
-import SessionManager from '@/app/components/chat/SessionManager';
+import AnimatedAIChat from '@/app/components/ui/animated-ai-chat';
 
 export default function Home() {
   return (
-    <SessionManager
-      onSessionInitialized={(sessionId) => {
-        console.log('Main page: Session initialized:', sessionId);
-      }}
-      onSessionRecovered={(sessionId) => {
-        console.log('Main page: Session recovered:', sessionId);
-      }}
-      onSessionCleanup={() => {
-        console.log('Main page: Session cleanup completed');
-      }}
-      enableSessionPersistence={true}
-      sessionTimeout={60} // 1 hour
-    >
-      <RealTimeChatInterface 
-        onConversationChange={(conversationId) => {
-          console.log('Main page: Conversation changed to', conversationId);
-        }}
-        onMessageSent={(message) => {
-          console.log('Main page: Message sent', message.content);
-        }}
-        onResponseReceived={(response) => {
-          console.log('Main page: Response received', {
-            hasImage: !!response.imageUrl,
-            responseLength: response.response.length
-          });
-        }}
-        onImageUpdated={(imageUrl) => {
-          console.log('Main page: Captain image updated to', imageUrl);
-        }}
-        enableDebugInfo={process.env.NODE_ENV === 'development'}
-      />
-    </SessionManager>
+    <div className="h-full w-full flex flex-col">
+      {/* Enhanced container with responsive design and proper spacing */}
+      <div className="flex-1 min-h-0 w-full max-w-full mx-auto">
+        <AnimatedAIChat
+          initialMessage="Guerreiro, bem-vindo à caverna! Sou o Capitão Caverna, seu mentor implacável no caminho da disciplina e transformação. Estou aqui para te guiar através do Modo Caverna - onde propósito, foco e progresso se encontram. Não espere palavras doces ou consolos vazios. Aqui, enfrentamos a realidade de frente e construímos a versão mais forte de você mesmo. O que te trouxe até aqui hoje?"
+          onMessageSent={(message) => {
+            console.log('Main page: Message sent:', message);
+            
+            // Enhanced logging for better debugging
+            console.log('Message details:', {
+              timestamp: new Date().toISOString(),
+              messageLength: message.length,
+              wordCount: message.split(' ').length
+            });
+          }}
+          onResponseReceived={(response) => {
+            console.log('Main page: Response received:', {
+              hasImage: !!response.imageUrl,
+              responseLength: response.response.length,
+              conversationId: response.conversationId,
+              timestamp: new Date().toISOString()
+            });
+            
+            // Enhanced analytics for response tracking
+            if (response.imageUrl) {
+              console.log('Captain image updated:', {
+                imageUrl: response.imageUrl,
+                conversationId: response.conversationId
+              });
+            }
+          }}
+          className="h-full w-full"
+        />
+      </div>
+    </div>
   );
 }

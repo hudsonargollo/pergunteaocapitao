@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { SemanticSearchService } from '@/lib/semantic-search'
+import { getCloudflareContext } from '@opennextjs/cloudflare'
+import { EnhancedSemanticSearchService } from '@/lib/enhanced-semantic-search'
 import { ResponseGenerator } from '@/lib/response-generator'
 import { ImageStorageService } from '@/lib/image-storage'
 import { EmbeddingService } from '@/lib/embedding-service'
@@ -61,7 +62,7 @@ async function chatHandler(request: NextRequest, context: MonitoringContext) {
   
   try {
     // Get Cloudflare environment bindings
-    const env = process.env as any as CloudflareEnv
+    const { env } = await getCloudflareContext()
     
     if (!env.OPENAI_API_KEY) {
       throw new CaptainError(
@@ -122,15 +123,20 @@ async function chatHandler(request: NextRequest, context: MonitoringContext) {
     const r2Client = new R2Client(env.R2_BUCKET, 'ask-the-captain')
     const d1Client = new D1Client(env.DB)
     
-    const semanticSearch = new SemanticSearchService(
+    const semanticSearch = new EnhancedSemanticSearchService(
       embeddingService,
       vectorizeClient,
       {
-        topK: 10,
-        minScore: 0.7,
-        maxResults: 5,
-        contextWindowSize: 4000,
-        fallbackEnabled: true
+        topK: 15,
+        minScore: 0.65,
+        maxResults: 6,
+        contextWindowSize: 5000,
+        fallbackEnabled: true,
+        hybridSearch: true,
+        keywordWeight: 0.3,
+        sourceWeighting: true,
+        freshnessFactor: 0.1,
+        includeWhatsAppInsights: true
       }
     )
     
@@ -143,14 +149,16 @@ async function chatHandler(request: NextRequest, context: MonitoringContext) {
       searchContext = await withTimeout(
         withRetry(
           () => semanticSearch.search(message, {
-            maxResults: 5,
-            minScore: 0.7
+            maxResults: 6,
+            minScore: 0.65,
+            hybridSearch: true,
+            includeWhatsAppInsights: true
           }),
           { maxAttempts: 2, baseDelayMs: 500 },
           'semantic-search'
         ),
-        10000, // 10 second timeout
-        'Semantic search timed out'
+        12000, // 12 second timeout for enhanced search
+        'Enhanced semantic search timed out'
       )
       partialResults = searchContext.results
       
@@ -316,14 +324,17 @@ async function chatHandler(request: NextRequest, context: MonitoringContext) {
     edgeMemoryManager.releaseMemory(`${operationId}_search`)
     edgeMemoryManager.releaseMemory(`${operationId}_response`)
 
-    // Add performance headers
+    // Add performance headers with enhanced search metrics
     const response = NextResponse.json(chatResponse)
     response.headers.set('X-Processing-Time', processingTime.toString())
     response.headers.set('X-Search-Results', searchContext.results.length.toString())
     response.headers.set('X-Fallback-Used', searchContext.fallbackUsed.toString())
+    response.headers.set('X-Hybrid-Search-Used', searchContext.hybridSearchUsed?.toString() || 'false')
     response.headers.set('X-Cache-Hit', cacheHit.toString())
     response.headers.set('X-Memory-Usage', memoryStats.totalUsage.toFixed(2))
     response.headers.set('X-Memory-Utilization', `${memoryStats.utilizationPercent.toFixed(1)}%`)
+    response.headers.set('X-Search-Quality', searchContext.qualityMetrics?.averageScore?.toFixed(2) || '0')
+    response.headers.set('X-Source-Diversity', searchContext.qualityMetrics?.diversityScore?.toFixed(2) || '0')
 
     return response
 

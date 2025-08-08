@@ -39,6 +39,8 @@ export interface DocumentChunk {
     title?: string
     section?: string
     page?: number
+    enhanced?: boolean
+    [key: string]: any
   }
 }
 
@@ -67,7 +69,7 @@ export interface SearchResult {
 }
 
 export interface ToneAnalysis {
-  primary: 'supportive' | 'challenging' | 'instructional' | 'motivational'
+  primary: 'supportive' | 'challenging' | 'instructional' | 'motivational' | 'neutral'
   intensity: 'low' | 'medium' | 'high'
   themes: string[]
   visualParameters: {
@@ -146,6 +148,174 @@ export interface CharacterConsistencyOptions {
   referenceImageIds?: string[]
   enhancedPrompting: boolean
   characterSeed?: string
+}
+
+// Character System Types
+export interface PhysicalTraits {
+  species: string
+  style: string
+  build: string
+  height: string
+  proportions: {
+    headToBodyRatio: string
+    legLength: string
+    kneePosition: string
+    armReach: string
+    torsoShape: string
+  }
+  stance: string
+  furColors: {
+    primary: string
+    muzzle: string
+    innerEars: string
+    tailTip: string
+    handFur: string
+    fingerPads: string
+  }
+  eyes: {
+    color: string
+    shape: string
+    eyebrows: string
+  }
+  hands: {
+    digitCount: string
+    fingerOrder: string
+    restrictions: string[]
+  }
+}
+
+export interface ClothingSpecification {
+  hoodie: {
+    color: string
+    fit: string
+    logo: {
+      shape: string
+      color: string
+      size: string
+      design: string
+      finish: string
+    }
+    drawstrings: string
+  }
+  pants: {
+    type: string
+    color: string
+    fit: string
+  }
+  shoes: {
+    type: string
+    asymmetry: string
+    colors: string
+  }
+}
+
+export interface EnvironmentSpecification {
+  setting: string
+  architecture: {
+    walls: string
+    ceiling: string
+    floor: string
+    scale: string
+  }
+  lighting: {
+    key: string
+    practical: string
+    rim: string
+    volumetrics: string
+  }
+  atmosphere: {
+    humidity: string
+    temperature: string
+    acoustics: string
+    naturalElements: string[]
+  }
+  technicalSpecs: {
+    resolution: string
+    rendering: string
+    continuity: string[]
+  }
+}
+
+export interface ContextualVariation {
+  pose: string
+  expression: string
+  lighting: string
+  cameraAngle: string
+  emotionalContext: string
+  gestureDetails?: string
+  environmentFocus?: string
+}
+
+export interface CharacterConsistencyValidation {
+  physicalTraitsMatch: boolean
+  clothingAccurate: boolean
+  proportionsCorrect: boolean
+  brandElementsPresent: boolean
+  qualityScore: number
+  issues: string[]
+  recommendations: string[]
+}
+
+// Contextual Image Generation Types
+export interface ResponseToneAnalysis {
+  primaryTone: 'supportive' | 'challenging' | 'instructional' | 'motivational' | 'neutral'
+  intensity: 'low' | 'medium' | 'high'
+  themes: string[]
+  emotionalMarkers: string[]
+  actionWords: string[]
+  contextualHints: string[]
+}
+
+export interface ImageGenerationContext {
+  responseContent: string
+  toneAnalysis: ResponseToneAnalysis
+  selectedVariation: ContextualVariation
+  characterPrompt: string
+  negativePrompts: string[]
+  technicalSpecs: {
+    resolution: string
+    quality: 'standard' | 'hd'
+    style: 'vivid' | 'natural'
+  }
+}
+
+export interface PromptConstructionOptions {
+  enhanceCharacterConsistency: boolean
+  includeEnvironmentDetails: boolean
+  addTechnicalSpecs: boolean
+  customSeed?: string
+  overridePose?: string
+  overrideExpression?: string
+}
+
+// Fallback Image System Types
+export interface FallbackImage {
+  id: string
+  name: string
+  description: string
+  tone: string
+  context: string
+  url: string
+  localPath?: string
+  isDefault: boolean
+  quality: 'high' | 'medium' | 'low'
+  lastValidated?: Date
+}
+
+export interface FallbackSelectionCriteria {
+  primaryTone: string
+  intensity: 'low' | 'medium' | 'high'
+  themes: string[]
+  fallbackReason: 'generation_failed' | 'validation_failed' | 'timeout' | 'rate_limited' | 'network_error'
+  preferHighQuality: boolean
+}
+
+export interface FallbackImageValidation {
+  imageExists: boolean
+  characterConsistent: boolean
+  contextAppropriate: boolean
+  qualityAcceptable: boolean
+  recommendedAlternatives: string[]
 }
 
 export interface ImageUploadResult {

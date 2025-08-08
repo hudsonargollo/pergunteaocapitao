@@ -334,20 +334,48 @@ export function useImageCache() {
 }
 
 /**
- * Utility function to create optimized image loading with fallbacks
+ * Enhanced utility function with validation integration
  */
 export async function loadImageWithFallbacks(
   primaryUrl: string,
-  fallbackUrls: string[] = [DEFAULT_CAPTAIN_IMAGES.default]
+  fallbackUrls: string[] = [DEFAULT_CAPTAIN_IMAGES.default],
+  options: {
+    validateConsistency?: boolean;
+    context?: any;
+    maxRetries?: number;
+  } = {}
 ): Promise<string> {
+  const { validateConsistency = false, context, maxRetries = 2 } = options;
   const allUrls = [primaryUrl, ...fallbackUrls];
   
-  for (const url of allUrls) {
+  for (let i = 0; i < allUrls.length; i++) {
+    const url = allUrls[i];
     try {
-      return await imageCacheManager.preloadImage(url, { 
+      const cachedUrl = await imageCacheManager.preloadImage(url, { 
         timeout: 5000, 
-        retries: 1 
+        retries: maxRetries 
       });
+
+      // If validation is enabled and this is the primary URL, validate it
+      if (validateConsistency && i === 0 && typeof window !== 'undefined') {
+        try {
+          // Dynamic import to avoid circular dependencies
+          const { captainImageValidator } = await import('./captain-image-validator');
+          const validationResult = await captainImageValidator.validateImage(url, context);
+          
+          if (!validationResult.isValid && validationResult.fallbackImage) {
+            console.warn('Primary image failed validation, using fallback:', validationResult.issues);
+            return await imageCacheManager.preloadImage(validationResult.fallbackImage, { 
+              timeout: 5000, 
+              retries: 1 
+            });
+          }
+        } catch (validationError) {
+          console.warn('Image validation failed, proceeding with original image:', validationError);
+        }
+      }
+
+      return cachedUrl;
     } catch (error) {
       console.warn(`Failed to load image ${url}:`, error);
       continue;
@@ -355,6 +383,65 @@ export async function loadImageWithFallbacks(
   }
   
   throw new Error('All image URLs failed to load');
+}
+
+/**
+ * Enhanced image loading with consistency validation
+ */
+export async function loadValidatedCaptainImage(
+  imageUrl: string,
+  context?: any,
+  fallbackUrls: string[] = [DEFAULT_CAPTAIN_IMAGES.default]
+): Promise<{
+  imageUrl: string;
+  isValidated: boolean;
+  validationScore?: number;
+  usedFallback: boolean;
+}> {
+  try {
+    // Load with validation
+    const loadedUrl = await loadImageWithFallbacks(imageUrl, fallbackUrls, {
+      validateConsistency: true,
+      context,
+      maxRetries: 2
+    });
+
+    // Check if we used a fallback
+    const usedFallback = loadedUrl !== imageUrl;
+
+    // Get validation score if available
+    let validationScore: number | undefined;
+    if (typeof window !== 'undefined') {
+      try {
+        const { captainImageValidator } = await import('./captain-image-validator');
+        const result = await captainImageValidator.validateImage(loadedUrl, context);
+        validationScore = result.score;
+      } catch (error) {
+        console.warn('Failed to get validation score:', error);
+      }
+    }
+
+    return {
+      imageUrl: loadedUrl,
+      isValidated: true,
+      validationScore,
+      usedFallback
+    };
+  } catch (error) {
+    console.error('Failed to load validated Captain image:', error);
+    
+    // Return default fallback
+    const defaultUrl = await imageCacheManager.preloadImage(DEFAULT_CAPTAIN_IMAGES.default, {
+      timeout: 5000,
+      retries: 1
+    });
+
+    return {
+      imageUrl: defaultUrl,
+      isValidated: false,
+      usedFallback: true
+    };
+  }
 }
 
 export type { PreloadOptions, CacheOptions, CachedImage };

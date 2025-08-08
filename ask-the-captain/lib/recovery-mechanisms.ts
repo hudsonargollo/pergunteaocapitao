@@ -1,544 +1,740 @@
-// Recovery mechanisms for partial failures in Ask the Captain
-import type { ChatResponse, SearchResult, ToneAnalysis } from '@/types'
-import { CaptainError, ErrorType, withRetry } from './error-handling'
-import { fallbackOrchestrator } from './fallback-systems'
+// Recovery mechanisms for partial system failures
+import type { ChatResponse, SearchResult, ResponseContext } from '@/types'
+import { CaptainError, ErrorType, ErrorSeverity } from './error-handling'
+import { captainErrorMessaging } from './captain-error-messaging'
+import { comprehensiveFallbackSystem } from './comprehensive-fallback-system'
+import { networkConnectivity, ConnectivityState } from './network-connectivity'
 
 /**
- * Recovery state tracking
+ * Recovery operation result
  */
-interface RecoveryState {
-  attemptCount: number
-  lastAttempt: Date
+interface RecoveryResult<T> {
+  success: boolean
+  data?: T
+  error?: CaptainError
   recoveryMethod: string
-  partialData?: any
-  isRecovering: boolean
+  fallbackUsed: boolean
+  retryCount: number
+  timestamp: Date
 }
 
 /**
- * Recovery context for operations
+ * Partial failure context
  */
-interface RecoveryContext {
-  operationId: string
-  operationType: 'chat' | 'search' | 'image' | 'storage'
-  originalRequest: any
-  partialResults?: any
-  errorHistory: CaptainError[]
-  recoveryState: RecoveryState
+interface PartialFailureContext {
+  originalOperation: string
+  userMessage?: string
+  conversationId?: string
+  partialData?: any
+  attemptCount: number
+  lastError?: CaptainError
+  startTime: Date
 }
 
 /**
- * Recovery strategy interface
+ * Recovery strategy definition
  */
 interface RecoveryStrategy {
-  canRecover(context: RecoveryContext): boolean
-  recover(context: RecoveryContext): Promise<any>
-  priority: number
   name: string
+  priority: number
+  condition: (context: PartialFailureContext) => boolean
+  execute: (context: PartialFailureContext) => Promise<RecoveryResult<any>>
+  maxAttempts: number
+  delayMs: number
 }
 
 /**
- * Chat completion recovery strategy
+ * Recovery mechanisms manager for handling partial system failures
  */
-class ChatCompletionRecovery implements RecoveryStrategy {
-  priority = 1
-  name = 'chat-completion-recovery'
+export class RecoveryMechanisms {
+  private strategies: Map<string, RecoveryStrategy[]> = new Map()
+  private activeRecoveries: Map<string, PartialFailureContext> = new Map()
+  private recoveryHistory: Array<{
+    operation: string
+    result: RecoveryResult<any>
+    context: PartialFailureContext
+  }> = []
 
-  canRecover(context: RecoveryContext): boolean {
-    return (
-      context.operationType === 'chat' &&
-      context.recoveryState.attemptCount < 3 &&
-      context.errorHistory.some(e => 
-        e.type === ErrorType.CHAT_COMPLETION_FAILED ||
-        e.type === ErrorType.OPENAI_API_ERROR
-      )
-    )
+  constructor() {
+    this.initializeRecoveryStrategies()
   }
 
-  async recover(context: RecoveryContext): Promise<ChatResponse> {
-    console.log(`Attempting chat completion recovery (attempt ${context.recoveryState.attemptCount + 1})`)
-
-    const { originalRequest, partialResults } = context
-
-    // Try with simplified prompt first
-    if (context.recoveryState.attemptCount === 0) {
-      return this.recoverWithSimplifiedPrompt(originalRequest, partialResults)
-    }
-
-    // Try with cached/fallback response
-    if (context.recoveryState.attemptCount === 1) {
-      return this.recoverWithFallbackResponse(originalRequest, partialResults)
-    }
-
-    // Final attempt with minimal response
-    return this.recoverWithMinimalResponse(originalRequest)
-  }
-
-  private async recoverWithSimplifiedPrompt(
-    originalRequest: any,
-    partialResults?: SearchResult[]
-  ): Promise<ChatResponse> {
-    // Create a simplified version of the original request
-    const simplifiedQuery = this.simplifyQuery(originalRequest.message)
-    
-    // Use fallback search results if available
-    const searchResults = partialResults || await fallbackOrchestrator.handleSearchFailure(simplifiedQuery)
-    
-    // Generate a basic response based on search results
-    const response = this.generateBasicResponse(simplifiedQuery, searchResults)
-    const imageUrl = await fallbackOrchestrator.handleImageFailure()
-
-    return {
-      response,
-      imageUrl,
-      conversationId: originalRequest.conversationId || `recovery_${Date.now()}`
-    }
-  }
-
-  private async recoverWithFallbackResponse(
-    originalRequest: any,
-    partialResults?: SearchResult[]
-  ): Promise<ChatResponse> {
-    const fallbackResponse = await fallbackOrchestrator.handleChatFlowFailure(
-      new CaptainError(ErrorType.CHAT_COMPLETION_FAILED, 'Recovery attempt'),
+  /**
+   * Initialize recovery strategies for different operations
+   */
+  private initializeRecoveryStrategies(): void {
+    // Chat completion recovery strategies
+    this.strategies.set('chat_completion', [
       {
-        query: originalRequest.message,
-        conversationId: originalRequest.conversationId || `recovery_${Date.now()}`,
-        partialResults: partialResults || []
+        name: 'partial_response_completion',
+        priority: 10,
+        condition: (ctx) => ctx.partialData?.partialResponse && ctx.partialData.partialResponse.length > 20,
+        execute: this.completePartialResponse.bind(this),
+        maxAttempts: 1,
+        delayMs: 0
+      },
+      {
+        name: 'context_based_response',
+        priority: 8,
+        condition: (ctx) => ctx.partialData?.searchResults && ctx.partialData.searchResults.length > 0,
+        execute: this.generateContextBasedResponse.bind(this),
+        maxAttempts: 1,
+        delayMs: 0
+      },
+      {
+        name: 'retry_with_simplified_prompt',
+        priority: 6,
+        condition: (ctx) => ctx.attemptCount < 2 && networkConnectivity.isOnline(),
+        execute: this.retryWithSimplifiedPrompt.bind(this),
+        maxAttempts: 2,
+        delayMs: 1000
+      },
+      {
+        name: 'fallback_response',
+        priority: 4,
+        condition: () => true,
+        execute: this.generateFallbackResponse.bind(this),
+        maxAttempts: 1,
+        delayMs: 0
       }
-    )
+    ])
 
-    return fallbackResponse
+    // Image generation recovery strategies
+    this.strategies.set('image_generation', [
+      {
+        name: 'retry_with_fallback_prompt',
+        priority: 10,
+        condition: (ctx) => ctx.attemptCount < 2 && networkConnectivity.isOnline(),
+        execute: this.retryImageWithFallbackPrompt.bind(this),
+        maxAttempts: 2,
+        delayMs: 1500
+      },
+      {
+        name: 'contextual_brand_asset',
+        priority: 8,
+        condition: (ctx) => ctx.partialData?.responseContext,
+        execute: this.selectContextualBrandAsset.bind(this),
+        maxAttempts: 1,
+        delayMs: 0
+      },
+      {
+        name: 'default_captain_image',
+        priority: 6,
+        condition: () => true,
+        execute: this.useDefaultCaptainImage.bind(this),
+        maxAttempts: 1,
+        delayMs: 0
+      }
+    ])
+
+    // Search recovery strategies
+    this.strategies.set('semantic_search', [
+      {
+        name: 'retry_with_modified_query',
+        priority: 10,
+        condition: (ctx) => ctx.attemptCount < 2 && networkConnectivity.isOnline(),
+        execute: this.retrySearchWithModifiedQuery.bind(this),
+        maxAttempts: 2,
+        delayMs: 500
+      },
+      {
+        name: 'keyword_based_search',
+        priority: 8,
+        condition: (ctx) => ctx.userMessage && ctx.userMessage.length > 0,
+        execute: this.performKeywordBasedSearch.bind(this),
+        maxAttempts: 1,
+        delayMs: 0
+      },
+      {
+        name: 'cached_results',
+        priority: 6,
+        condition: (ctx) => this.hasCachedResults(ctx.userMessage || ''),
+        execute: this.retrieveCachedResults.bind(this),
+        maxAttempts: 1,
+        delayMs: 0
+      },
+      {
+        name: 'fallback_knowledge',
+        priority: 4,
+        condition: () => true,
+        execute: this.generateFallbackKnowledge.bind(this),
+        maxAttempts: 1,
+        delayMs: 0
+      }
+    ])
+
+    // Storage recovery strategies
+    this.strategies.set('storage_operation', [
+      {
+        name: 'retry_with_exponential_backoff',
+        priority: 10,
+        condition: (ctx) => ctx.attemptCount < 3 && networkConnectivity.isOnline(),
+        execute: this.retryStorageWithBackoff.bind(this),
+        maxAttempts: 3,
+        delayMs: 1000
+      },
+      {
+        name: 'alternative_storage_method',
+        priority: 8,
+        condition: (ctx) => ctx.attemptCount < 2,
+        execute: this.useAlternativeStorageMethod.bind(this),
+        maxAttempts: 2,
+        delayMs: 500
+      },
+      {
+        name: 'graceful_degradation',
+        priority: 6,
+        condition: () => true,
+        execute: this.gracefulStorageDegradation.bind(this),
+        maxAttempts: 1,
+        delayMs: 0
+      }
+    ])
   }
 
-  private async recoverWithMinimalResponse(originalRequest: any): Promise<ChatResponse> {
-    return {
-      response: 'Guerreiro, estou enfrentando dificuldades técnicas, mas sua jornada de transformação continua. Use este momento para refletir sobre suas próximas ações e volte mais forte.',
-      imageUrl: '/placeholder-captain.svg',
-      conversationId: originalRequest.conversationId || `recovery_${Date.now()}`
+  /**
+   * Execute recovery for a failed operation
+   */
+  async executeRecovery<T>(
+    operation: string,
+    context: Partial<PartialFailureContext>
+  ): Promise<RecoveryResult<T>> {
+    const fullContext: PartialFailureContext = {
+      originalOperation: operation,
+      attemptCount: context.attemptCount || 1,
+      startTime: context.startTime || new Date(),
+      ...context
+    }
+
+    // Track active recovery
+    const recoveryId = `${operation}_${Date.now()}`
+    this.activeRecoveries.set(recoveryId, fullContext)
+
+    try {
+      const strategies = this.strategies.get(operation) || []
+      
+      // Sort strategies by priority (highest first)
+      const sortedStrategies = strategies
+        .filter(strategy => strategy.condition(fullContext))
+        .sort((a, b) => b.priority - a.priority)
+
+      if (sortedStrategies.length === 0) {
+        throw new CaptainError(
+          ErrorType.INTERNAL_ERROR,
+          `No recovery strategies available for operation: ${operation}`,
+          { details: { operation, context: fullContext } }
+        )
+      }
+
+      // Try each strategy until one succeeds
+      for (const strategy of sortedStrategies) {
+        try {
+          console.log(`Attempting recovery strategy: ${strategy.name} for operation: ${operation}`)
+          
+          const result = await strategy.execute(fullContext)
+          
+          if (result.success) {
+            // Log successful recovery
+            this.logRecoveryResult(operation, result, fullContext)
+            return result
+          }
+        } catch (error) {
+          console.warn(`Recovery strategy ${strategy.name} failed:`, error)
+          continue
+        }
+      }
+
+      // All strategies failed
+      const failureResult: RecoveryResult<T> = {
+        success: false,
+        error: new CaptainError(
+          ErrorType.INTERNAL_ERROR,
+          `All recovery strategies failed for operation: ${operation}`,
+          { details: { operation, strategiesAttempted: sortedStrategies.length } }
+        ),
+        recoveryMethod: 'none',
+        fallbackUsed: false,
+        retryCount: fullContext.attemptCount,
+        timestamp: new Date()
+      }
+
+      this.logRecoveryResult(operation, failureResult, fullContext)
+      return failureResult
+
+    } finally {
+      // Clean up active recovery tracking
+      this.activeRecoveries.delete(recoveryId)
     }
   }
 
-  private simplifyQuery(query: string): string {
-    // Remove complex punctuation and reduce to key terms
-    return query
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(word => word.length > 2)
-      .slice(0, 5)
-      .join(' ')
+  /**
+   * Complete partial response strategy
+   */
+  private async completePartialResponse(context: PartialFailureContext): Promise<RecoveryResult<ChatResponse>> {
+    const partialResponse = context.partialData?.partialResponse || ''
+    
+    // Analyze the partial response to determine appropriate completion
+    let completedResponse = partialResponse.trim()
+    
+    // Check if response ends mid-sentence
+    const lastChar = completedResponse.slice(-1)
+    if (!['.', '!', '?'].includes(lastChar)) {
+      // Add contextual completion based on content
+      if (completedResponse.toLowerCase().includes('lembre-se')) {
+        completedResponse += ' - a ação é sempre o próximo passo.'
+      } else if (completedResponse.toLowerCase().includes('guerreiro')) {
+        completedResponse += ' Continue firme na sua jornada.'
+      } else if (completedResponse.toLowerCase().includes('disciplina')) {
+        completedResponse += ' Mantenha o foco e persista.'
+      } else {
+        completedResponse += ' Mantenha a determinação e continue avançando.'
+      }
+    }
+
+    // Get appropriate Captain image for the completed response
+    const fallbackImage = await comprehensiveFallbackSystem.getFallbackImage('supportive')
+
+    return {
+      success: true,
+      data: {
+        response: completedResponse,
+        imageUrl: fallbackImage.url,
+        conversationId: context.conversationId || `recovery_${Date.now()}`
+      },
+      recoveryMethod: 'partial_response_completion',
+      fallbackUsed: true,
+      retryCount: context.attemptCount,
+      timestamp: new Date()
+    }
   }
 
-  private generateBasicResponse(query: string, searchResults: SearchResult[]): string {
+  /**
+   * Generate response based on search context
+   */
+  private async generateContextBasedResponse(context: PartialFailureContext): Promise<RecoveryResult<ChatResponse>> {
+    const searchResults = context.partialData?.searchResults || []
+    const userMessage = context.userMessage || ''
+
     if (searchResults.length === 0) {
-      return 'Guerreiro, não encontrei informações específicas sobre sua consulta, mas lembre-se: a resposta que você procura pode estar na ação que você ainda não tomou.'
+      throw new Error('No search results available for context-based response')
     }
 
     const topResult = searchResults[0]
-    const snippet = topResult.content.substring(0, 150)
+    const contextSnippet = topResult.content.substring(0, 200)
 
-    return `Baseado no que encontrei, guerreiro: ${snippet}... 
+    const contextualResponse = `Baseado no que encontrei sobre sua consulta, guerreiro: ${contextSnippet}...
 
 A chave está em aplicar esse conhecimento através da ação consistente. Qual será seu próximo passo?`
-  }
-}
 
-/**
- * Image generation recovery strategy
- */
-class ImageGenerationRecovery implements RecoveryStrategy {
-  priority = 2
-  name = 'image-generation-recovery'
+    const fallbackImage = await comprehensiveFallbackSystem.getFallbackImage('instructional')
 
-  canRecover(context: RecoveryContext): boolean {
-    return (
-      context.operationType === 'image' &&
-      context.recoveryState.attemptCount < 2 &&
-      context.errorHistory.some(e => 
-        e.type === ErrorType.IMAGE_GENERATION_FAILED ||
-        e.type === ErrorType.IMAGE_DOWNLOAD_FAILED
-      )
-    )
-  }
-
-  async recover(context: RecoveryContext): Promise<{ imageUrl: string; recovered: boolean }> {
-    console.log(`Attempting image generation recovery (attempt ${context.recoveryState.attemptCount + 1})`)
-
-    // First attempt: try with simplified prompt
-    if (context.recoveryState.attemptCount === 0) {
-      return this.recoverWithSimplifiedPrompt(context.originalRequest)
-    }
-
-    // Second attempt: use fallback image
-    return this.recoverWithFallbackImage(context.originalRequest.toneAnalysis)
-  }
-
-  private async recoverWithSimplifiedPrompt(originalRequest: any): Promise<{ imageUrl: string; recovered: boolean }> {
-    try {
-      // Create a very basic prompt
-      const basicPrompt = 'A Pixar-style wolf character in a cave setting, professional 3D rendering'
-      
-      // This would normally call the image generation service with the simplified prompt
-      // For now, we'll simulate a recovery attempt
-      console.log('Attempting image generation with simplified prompt:', basicPrompt)
-      
-      // Simulate potential success or failure
-      const success = Math.random() > 0.5 // 50% chance of success for simulation
-      
-      if (success) {
-        return {
-          imageUrl: '/placeholder-captain.svg', // Would be actual generated image
-          recovered: true
-        }
-      }
-      
-      throw new Error('Simplified prompt also failed')
-    } catch (error) {
-      console.warn('Simplified image generation failed:', error)
-      return this.recoverWithFallbackImage(originalRequest.toneAnalysis)
-    }
-  }
-
-  private async recoverWithFallbackImage(toneAnalysis?: ToneAnalysis): Promise<{ imageUrl: string; recovered: boolean }> {
-    const fallbackUrl = await fallbackOrchestrator.handleImageFailure(toneAnalysis)
-    return {
-      imageUrl: fallbackUrl,
-      recovered: false // Using fallback, not recovered
-    }
-  }
-}
-
-/**
- * Search recovery strategy
- */
-class SearchRecovery implements RecoveryStrategy {
-  priority = 3
-  name = 'search-recovery'
-
-  canRecover(context: RecoveryContext): boolean {
-    return (
-      context.operationType === 'search' &&
-      context.recoveryState.attemptCount < 2 &&
-      context.errorHistory.some(e => 
-        e.type === ErrorType.SEMANTIC_SEARCH_FAILED ||
-        e.type === ErrorType.VECTORIZE_ERROR
-      )
-    )
-  }
-
-  async recover(context: RecoveryContext): Promise<{ results: SearchResult[]; recovered: boolean }> {
-    console.log(`Attempting search recovery (attempt ${context.recoveryState.attemptCount + 1})`)
-
-    // First attempt: try with simplified query
-    if (context.recoveryState.attemptCount === 0) {
-      return this.recoverWithSimplifiedQuery(context.originalRequest.query)
-    }
-
-    // Second attempt: use fallback results
-    return this.recoverWithFallbackResults(context.originalRequest.query)
-  }
-
-  private async recoverWithSimplifiedQuery(query: string): Promise<{ results: SearchResult[]; recovered: boolean }> {
-    try {
-      // Simplify the query to basic terms
-      const simplifiedQuery = query
-        .toLowerCase()
-        .replace(/[^\w\s]/g, ' ')
-        .split(/\s+/)
-        .filter(word => word.length > 2)
-        .slice(0, 3)
-        .join(' ')
-
-      console.log('Attempting search with simplified query:', simplifiedQuery)
-      
-      // This would normally attempt the search with simplified query
-      // For now, we'll simulate a recovery attempt
-      const success = Math.random() > 0.3 // 70% chance of success for simulation
-      
-      if (success) {
-        // Return some mock results for simulation
-        return {
-          results: [{
-            content: `Informações relacionadas a "${simplifiedQuery}" encontradas na base de conhecimento...`,
-            score: 0.7,
-            metadata: { source: 'recovered-search', section: 'simplified-query' }
-          }],
-          recovered: true
-        }
-      }
-      
-      throw new Error('Simplified search also failed')
-    } catch (error) {
-      console.warn('Simplified search failed:', error)
-      return this.recoverWithFallbackResults(query)
-    }
-  }
-
-  private async recoverWithFallbackResults(query: string): Promise<{ results: SearchResult[]; recovered: boolean }> {
-    const fallbackResults = await fallbackOrchestrator.handleSearchFailure(query)
-    return {
-      results: fallbackResults,
-      recovered: false // Using fallback, not recovered
-    }
-  }
-}
-
-/**
- * Storage recovery strategy
- */
-class StorageRecovery implements RecoveryStrategy {
-  priority = 4
-  name = 'storage-recovery'
-
-  canRecover(context: RecoveryContext): boolean {
-    return (
-      context.operationType === 'storage' &&
-      context.recoveryState.attemptCount < 3 &&
-      context.errorHistory.some(e => 
-        e.type === ErrorType.R2_STORAGE_ERROR ||
-        e.type === ErrorType.D1_DATABASE_ERROR
-      )
-    )
-  }
-
-  async recover(context: RecoveryContext): Promise<{ success: boolean; data?: any }> {
-    console.log(`Attempting storage recovery (attempt ${context.recoveryState.attemptCount + 1})`)
-
-    // Try different recovery strategies based on attempt count
-    switch (context.recoveryState.attemptCount) {
-      case 0:
-        return this.recoverWithRetry(context.originalRequest)
-      case 1:
-        return this.recoverWithAlternativeStorage(context.originalRequest)
-      case 2:
-        return this.recoverWithTemporaryStorage(context.originalRequest)
-      default:
-        return { success: false }
-    }
-  }
-
-  private async recoverWithRetry(originalRequest: any): Promise<{ success: boolean; data?: any }> {
-    try {
-      // Implement retry logic with exponential backoff
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // This would normally retry the original storage operation
-      console.log('Retrying storage operation...')
-      
-      // Simulate potential success
-      const success = Math.random() > 0.4 // 60% chance of success
-      
-      if (success) {
-        return {
-          success: true,
-          data: { message: 'Storage operation succeeded on retry' }
-        }
-      }
-      
-      throw new Error('Retry failed')
-    } catch (error) {
-      console.warn('Storage retry failed:', error)
-      return { success: false }
-    }
-  }
-
-  private async recoverWithAlternativeStorage(originalRequest: any): Promise<{ success: boolean; data?: any }> {
-    try {
-      // Try alternative storage method (e.g., different bucket, local storage, etc.)
-      console.log('Attempting alternative storage method...')
-      
-      // Simulate alternative storage
-      const success = Math.random() > 0.6 // 40% chance of success
-      
-      if (success) {
-        return {
-          success: true,
-          data: { message: 'Alternative storage succeeded', alternative: true }
-        }
-      }
-      
-      throw new Error('Alternative storage failed')
-    } catch (error) {
-      console.warn('Alternative storage failed:', error)
-      return { success: false }
-    }
-  }
-
-  private async recoverWithTemporaryStorage(originalRequest: any): Promise<{ success: boolean; data?: any }> {
-    // Use temporary/in-memory storage as last resort
-    console.log('Using temporary storage as fallback...')
-    
     return {
       success: true,
-      data: { 
-        message: 'Using temporary storage', 
-        temporary: true,
-        warning: 'Data may not persist across sessions'
-      }
+      data: {
+        response: contextualResponse,
+        imageUrl: fallbackImage.url,
+        conversationId: context.conversationId || `recovery_${Date.now()}`
+      },
+      recoveryMethod: 'context_based_response',
+      fallbackUsed: true,
+      retryCount: context.attemptCount,
+      timestamp: new Date()
     }
   }
-}
-
-/**
- * Main recovery orchestrator
- */
-export class RecoveryOrchestrator {
-  private strategies: RecoveryStrategy[] = [
-    new ChatCompletionRecovery(),
-    new ImageGenerationRecovery(),
-    new SearchRecovery(),
-    new StorageRecovery()
-  ]
-
-  private activeRecoveries = new Map<string, RecoveryContext>()
 
   /**
-   * Attempt to recover from a failed operation
+   * Retry with simplified prompt
    */
-  async attemptRecovery(
-    operationId: string,
-    operationType: 'chat' | 'search' | 'image' | 'storage',
-    originalRequest: any,
-    error: CaptainError,
-    partialResults?: any
-  ): Promise<any> {
-    // Get or create recovery context
-    let context = this.activeRecoveries.get(operationId)
+  private async retryWithSimplifiedPrompt(context: PartialFailureContext): Promise<RecoveryResult<ChatResponse>> {
+    const userMessage = context.userMessage || ''
     
-    if (!context) {
-      context = {
-        operationId,
-        operationType,
-        originalRequest,
-        partialResults,
-        errorHistory: [error],
-        recoveryState: {
-          attemptCount: 0,
-          lastAttempt: new Date(),
-          recoveryMethod: 'none',
-          isRecovering: false
+    // Simplify the user message for retry
+    const simplifiedMessage = this.simplifyUserMessage(userMessage)
+
+    try {
+      // Attempt simplified API call
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: simplifiedMessage,
+          conversationId: context.conversationId,
+          simplified: true
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const chatResponse = await response.json()
+
+      return {
+        success: true,
+        data: chatResponse,
+        recoveryMethod: 'retry_with_simplified_prompt',
+        fallbackUsed: false,
+        retryCount: context.attemptCount + 1,
+        timestamp: new Date()
+      }
+    } catch (error) {
+      throw new CaptainError(
+        ErrorType.CHAT_COMPLETION_FAILED,
+        `Simplified retry failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { cause: error instanceof Error ? error : undefined }
+      )
+    }
+  }
+
+  /**
+   * Generate fallback response
+   */
+  private async generateFallbackResponse(context: PartialFailureContext): Promise<RecoveryResult<ChatResponse>> {
+    const errorType = context.lastError?.type || ErrorType.CHAT_COMPLETION_FAILED
+    const captainMessage = captainErrorMessaging.getCaptainErrorMessage(errorType, {
+      userMessage: context.userMessage,
+      attemptCount: context.attemptCount
+    })
+
+    const fallbackImage = await comprehensiveFallbackSystem.getFallbackImage('supportive')
+
+    return {
+      success: true,
+      data: {
+        response: captainMessage.message,
+        imageUrl: fallbackImage.url,
+        conversationId: context.conversationId || `fallback_${Date.now()}`
+      },
+      recoveryMethod: 'fallback_response',
+      fallbackUsed: true,
+      retryCount: context.attemptCount,
+      timestamp: new Date()
+    }
+  }
+
+  /**
+   * Retry image generation with fallback prompt
+   */
+  private async retryImageWithFallbackPrompt(context: PartialFailureContext): Promise<RecoveryResult<string>> {
+    const responseContext = context.partialData?.responseContext
+
+    try {
+      // Use a simplified, more reliable prompt
+      const fallbackPrompt = {
+        responseContent: 'Capitão Caverna em pose padrão',
+        context: {
+          tone: 'supportive',
+          themes: ['default'],
+          intensity: 'medium'
         }
       }
-      this.activeRecoveries.set(operationId, context)
-    } else {
-      // Update existing context
-      context.errorHistory.push(error)
-      context.partialResults = partialResults || context.partialResults
-    }
 
-    // Find applicable recovery strategies
-    const applicableStrategies = this.strategies
-      .filter(strategy => strategy.canRecover(context!))
-      .sort((a, b) => a.priority - b.priority)
+      const response = await fetch('/api/v1/images/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fallbackPrompt)
+      })
 
-    if (applicableStrategies.length === 0) {
-      console.warn(`No recovery strategies available for operation ${operationId}`)
-      this.activeRecoveries.delete(operationId)
-      throw error
-    }
-
-    // Try each strategy
-    for (const strategy of applicableStrategies) {
-      try {
-        console.log(`Attempting recovery with strategy: ${strategy.name}`)
-        
-        context.recoveryState.isRecovering = true
-        context.recoveryState.recoveryMethod = strategy.name
-        context.recoveryState.lastAttempt = new Date()
-
-        const result = await strategy.recover(context)
-        
-        // Recovery successful
-        context.recoveryState.isRecovering = false
-        context.recoveryState.attemptCount++
-        
-        console.log(`Recovery successful with strategy: ${strategy.name}`)
-        
-        // Keep context for potential future failures, but mark as recovered
-        return result
-
-      } catch (recoveryError) {
-        console.warn(`Recovery strategy ${strategy.name} failed:`, recoveryError)
-        context.recoveryState.attemptCount++
-        context.errorHistory.push(recoveryError as CaptainError)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
-    }
 
-    // All recovery strategies failed
-    context.recoveryState.isRecovering = false
-    this.activeRecoveries.delete(operationId)
+      const imageResponse = await response.json()
+
+      return {
+        success: true,
+        data: imageResponse.imageUrl,
+        recoveryMethod: 'retry_with_fallback_prompt',
+        fallbackUsed: true,
+        retryCount: context.attemptCount + 1,
+        timestamp: new Date()
+      }
+    } catch (error) {
+      throw new CaptainError(
+        ErrorType.IMAGE_GENERATION_FAILED,
+        `Fallback image generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { cause: error instanceof Error ? error : undefined }
+      )
+    }
+  }
+
+  /**
+   * Select contextual brand asset
+   */
+  private async selectContextualBrandAsset(context: PartialFailureContext): Promise<RecoveryResult<string>> {
+    const responseContext = context.partialData?.responseContext
+    const fallbackContext = responseContext?.tone || 'default'
+
+    const brandAsset = await comprehensiveFallbackSystem.getFallbackImage(fallbackContext, {
+      preferHighQuality: true,
+      maxAttempts: 1
+    })
+
+    return {
+      success: true,
+      data: brandAsset.url,
+      recoveryMethod: 'contextual_brand_asset',
+      fallbackUsed: brandAsset.usedFallback,
+      retryCount: context.attemptCount,
+      timestamp: new Date()
+    }
+  }
+
+  /**
+   * Use default Captain image
+   */
+  private async useDefaultCaptainImage(context: PartialFailureContext): Promise<RecoveryResult<string>> {
+    const defaultImage = await comprehensiveFallbackSystem.getFallbackImage('default', {
+      preferHighQuality: false,
+      maxAttempts: 1
+    })
+
+    return {
+      success: true,
+      data: defaultImage.url,
+      recoveryMethod: 'default_captain_image',
+      fallbackUsed: true,
+      retryCount: context.attemptCount,
+      timestamp: new Date()
+    }
+  }
+
+  /**
+   * Retry search with modified query
+   */
+  private async retrySearchWithModifiedQuery(context: PartialFailureContext): Promise<RecoveryResult<SearchResult[]>> {
+    const originalQuery = context.userMessage || ''
+    const modifiedQuery = this.modifySearchQuery(originalQuery)
+
+    try {
+      // This would integrate with the actual search system
+      // For now, return a placeholder implementation
+      throw new Error('Search retry not implemented')
+    } catch (error) {
+      throw new CaptainError(
+        ErrorType.SEMANTIC_SEARCH_FAILED,
+        `Modified search retry failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { cause: error instanceof Error ? error : undefined }
+      )
+    }
+  }
+
+  /**
+   * Perform keyword-based search fallback
+   */
+  private async performKeywordBasedSearch(context: PartialFailureContext): Promise<RecoveryResult<SearchResult[]>> {
+    // Placeholder for keyword-based search implementation
+    const keywords = this.extractKeywords(context.userMessage || '')
     
-    console.error(`All recovery strategies failed for operation ${operationId}`)
-    throw new CaptainError(
-      ErrorType.INTERNAL_ERROR,
-      'All recovery attempts failed',
-      {
-        details: {
-          operationId,
-          operationType,
-          attemptCount: context.recoveryState.attemptCount,
-          strategiesAttempted: applicableStrategies.map(s => s.name)
-        }
+    // Return basic fallback results
+    const fallbackResults: SearchResult[] = [{
+      content: 'Guerreiro, não consegui encontrar informações específicas sobre sua consulta no momento. Mas lembre-se: a verdadeira sabedoria vem da ação consistente e da disciplina diária.',
+      score: 0.7,
+      metadata: {
+        source: 'fallback_search',
+        section: 'general_guidance'
       }
-    )
+    }]
+
+    return {
+      success: true,
+      data: fallbackResults,
+      recoveryMethod: 'keyword_based_search',
+      fallbackUsed: true,
+      retryCount: context.attemptCount,
+      timestamp: new Date()
+    }
   }
 
   /**
-   * Check if an operation is currently being recovered
+   * Retrieve cached search results
    */
-  isRecovering(operationId: string): boolean {
-    const context = this.activeRecoveries.get(operationId)
-    return context?.recoveryState.isRecovering || false
+  private async retrieveCachedResults(context: PartialFailureContext): Promise<RecoveryResult<SearchResult[]>> {
+    // Placeholder for cached results retrieval
+    // In a real implementation, this would check a cache system
+    
+    throw new Error('No cached results available')
   }
 
   /**
-   * Get recovery status for an operation
+   * Generate fallback knowledge
    */
-  getRecoveryStatus(operationId: string): RecoveryState | null {
-    const context = this.activeRecoveries.get(operationId)
-    return context?.recoveryState || null
+  private async generateFallbackKnowledge(context: PartialFailureContext): Promise<RecoveryResult<SearchResult[]>> {
+    const fallbackKnowledge: SearchResult[] = [{
+      content: 'Guerreiro, mesmo sem acesso completo à base de conhecimento, posso te orientar com os princípios fundamentais: Purpose > Focus > Progress. Defina seu propósito, mantenha o foco e dê o próximo passo.',
+      score: 0.8,
+      metadata: {
+        source: 'fallback_knowledge',
+        section: 'core_principles'
+      }
+    }]
+
+    return {
+      success: true,
+      data: fallbackKnowledge,
+      recoveryMethod: 'fallback_knowledge',
+      fallbackUsed: true,
+      retryCount: context.attemptCount,
+      timestamp: new Date()
+    }
   }
 
   /**
-   * Clear recovery context for an operation
+   * Retry storage with exponential backoff
    */
-  clearRecoveryContext(operationId: string): void {
-    this.activeRecoveries.delete(operationId)
+  private async retryStorageWithBackoff(context: PartialFailureContext): Promise<RecoveryResult<any>> {
+    const delay = Math.min(1000 * Math.pow(2, context.attemptCount - 1), 10000)
+    
+    await new Promise(resolve => setTimeout(resolve, delay))
+    
+    // Placeholder for actual storage retry logic
+    throw new Error('Storage retry not implemented')
   }
 
   /**
-   * Get all active recoveries (for monitoring)
+   * Use alternative storage method
    */
-  getActiveRecoveries(): Array<{ operationId: string; context: RecoveryContext }> {
-    return Array.from(this.activeRecoveries.entries()).map(([operationId, context]) => ({
-      operationId,
+  private async useAlternativeStorageMethod(context: PartialFailureContext): Promise<RecoveryResult<any>> {
+    // Placeholder for alternative storage implementation
+    throw new Error('Alternative storage not implemented')
+  }
+
+  /**
+   * Graceful storage degradation
+   */
+  private async gracefulStorageDegradation(context: PartialFailureContext): Promise<RecoveryResult<any>> {
+    // Continue without storage - graceful degradation
+    return {
+      success: true,
+      data: { stored: false, message: 'Continuing without storage' },
+      recoveryMethod: 'graceful_storage_degradation',
+      fallbackUsed: true,
+      retryCount: context.attemptCount,
+      timestamp: new Date()
+    }
+  }
+
+  /**
+   * Helper methods
+   */
+  private simplifyUserMessage(message: string): string {
+    // Remove complex punctuation and shorten message
+    return message
+      .replace(/[^\w\s\?\.!]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 200)
+  }
+
+  private modifySearchQuery(query: string): string {
+    // Extract key terms and create a simpler query
+    const keywords = this.extractKeywords(query)
+    return keywords.slice(0, 3).join(' ')
+  }
+
+  private extractKeywords(text: string): string[] {
+    // Simple keyword extraction
+    return text
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(word => word.length > 3)
+      .filter(word => !['para', 'como', 'onde', 'quando', 'porque', 'qual'].includes(word))
+      .slice(0, 5)
+  }
+
+  private hasCachedResults(query: string): boolean {
+    // Placeholder for cache check
+    return false
+  }
+
+  /**
+   * Log recovery result for monitoring
+   */
+  private logRecoveryResult(
+    operation: string,
+    result: RecoveryResult<any>,
+    context: PartialFailureContext
+  ): void {
+    this.recoveryHistory.push({
+      operation,
+      result,
+      context
+    })
+
+    // Keep only last 100 recovery attempts
+    if (this.recoveryHistory.length > 100) {
+      this.recoveryHistory.shift()
+    }
+
+    // Log for monitoring
+    console.log(`Recovery ${result.success ? 'succeeded' : 'failed'} for ${operation}:`, {
+      method: result.recoveryMethod,
+      fallbackUsed: result.fallbackUsed,
+      retryCount: result.retryCount,
+      duration: Date.now() - context.startTime.getTime()
+    })
+  }
+
+  /**
+   * Get recovery statistics
+   */
+  getRecoveryStats(): {
+    totalRecoveries: number
+    successRate: number
+    mostUsedMethods: Array<{ method: string; count: number }>
+    recentFailures: Array<{ operation: string; error: string; timestamp: Date }>
+  } {
+    const totalRecoveries = this.recoveryHistory.length
+    const successfulRecoveries = this.recoveryHistory.filter(r => r.result.success).length
+    const successRate = totalRecoveries > 0 ? successfulRecoveries / totalRecoveries : 0
+
+    // Count recovery methods
+    const methodCounts = new Map<string, number>()
+    this.recoveryHistory.forEach(r => {
+      const method = r.result.recoveryMethod
+      methodCounts.set(method, (methodCounts.get(method) || 0) + 1)
+    })
+
+    const mostUsedMethods = Array.from(methodCounts.entries())
+      .map(([method, count]) => ({ method, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+
+    // Recent failures
+    const recentFailures = this.recoveryHistory
+      .filter(r => !r.result.success)
+      .slice(-10)
+      .map(r => ({
+        operation: r.operation,
+        error: r.result.error?.message || 'Unknown error',
+        timestamp: r.result.timestamp
+      }))
+
+    return {
+      totalRecoveries,
+      successRate,
+      mostUsedMethods,
+      recentFailures
+    }
+  }
+
+  /**
+   * Clear recovery history
+   */
+  clearHistory(): void {
+    this.recoveryHistory = []
+  }
+
+  /**
+   * Get active recoveries
+   */
+  getActiveRecoveries(): Array<{ id: string; context: PartialFailureContext }> {
+    return Array.from(this.activeRecoveries.entries()).map(([id, context]) => ({
+      id,
       context
     }))
-  }
-
-  /**
-   * Clean up old recovery contexts
-   */
-  cleanupOldRecoveries(maxAge: number = 300000): void { // 5 minutes default
-    const now = new Date()
-    
-    for (const [operationId, context] of this.activeRecoveries.entries()) {
-      const age = now.getTime() - context.recoveryState.lastAttempt.getTime()
-      
-      if (age > maxAge && !context.recoveryState.isRecovering) {
-        console.log(`Cleaning up old recovery context for operation ${operationId}`)
-        this.activeRecoveries.delete(operationId)
-      }
-    }
   }
 }
 
 // Export singleton instance
-export const recoveryOrchestrator = new RecoveryOrchestrator()
-
-// Cleanup old recoveries every 5 minutes
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    recoveryOrchestrator.cleanupOldRecoveries()
-  }, 300000)
-}
+export const recoveryMechanisms = new RecoveryMechanisms()

@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-08-08T02:49:12.845Z",
+  "totalTests": 9,
+  "passedTests": 0,
+  "failedTests": 9,
+  "successRate": 0,
+  "overallCoverage": 0,
+  "duration": 7682,
+  "criticalIssues": 6,
+  "recommendations": 3
+}
